@@ -1,0 +1,42 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-10-09 15:26:35.088786",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "software_project_workflow_system_html"
+ ],
+ "fields": [
+  {
+   "fieldname": "software_project_workflow_system_html",
+   "fieldtype": "HTML",
+   "label": "Software Project Workflow System HTML"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-10-09 15:26:50.916167",
+ "modified_by": "Administrator",
+ "module": "Contacts",
+ "name": "Software Project Workflow System",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

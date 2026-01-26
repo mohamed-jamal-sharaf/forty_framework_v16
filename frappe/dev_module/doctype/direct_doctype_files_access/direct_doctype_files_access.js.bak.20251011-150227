@@ -1,0 +1,32 @@
+// Direct Doctype Files Access — filter target_doctype by dev_module,
+// exclude two doctypes, and only show non-single, non-child DocTypes.
+
+frappe.ui.form.on('Direct Doctype Files Access', {
+  onload(frm)  { set_link_query(frm); },
+  refresh(frm) { set_link_query(frm); },
+
+  // When module changes, clear target_doctype and reapply query
+  dev_module(frm) {
+    frm.set_value('target_doctype', '');
+    set_link_query(frm);
+  },
+
+  // Safety: block saving if excluded DocType somehow set
+  validate(frm) {
+    const excluded = ['Direct Doctype Files Access', 'CODE EDITOR Pro'];
+    if (excluded.includes(frm.doc.target_doctype)) {
+      frappe.throw(__('This DocType is not allowed to be selected.'));
+    }
+  }
+});
+
+function set_link_query(frm) {
+  frm.set_query('target_doctype', () => {
+    return {
+      // IMPORTANT: Your app is "frappe", module folder is "dev_module"
+      query: 'frappe.dev_module.doctype.direct_doctype_files_access.direct_doctype_files_access.doctypes_query',
+      // send Module Def *title* (your dev_module field already stores it)
+      filters: { module: frm.doc.dev_module || null }
+    };
+  });
+}

@@ -1,0 +1,15 @@
+frappe.ui.form.on('Direct Doctype Files Access', {
+  async dev_module(frm) {
+    frm.set_value('target_doctype', '');
+
+    const res = await frappe.call({
+      method: 'frappe.dev_module.doctype.direct_doctype_files_access.direct_doctype_files_access.get_filtered_doctypes',
+      args: { module_name: frm.doc.module_name }
+    });
+
+    if (res.message) {
+      frm.set_df_property('target_doctype', 'options', res.message);
+      frm.refresh_field('target_doctype');
+    }
+  }
+});

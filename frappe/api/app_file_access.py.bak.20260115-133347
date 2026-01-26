@@ -1,0 +1,86 @@
+import os
+import time
+import shutil
+import frappe
+
+
+# ✅ Return list of installed apps
+@frappe.whitelist()
+def get_installed_apps():
+    return frappe.get_installed_apps()
+
+
+# ✅ Browsing files and folders in an app directory
+@frappe.whitelist()
+def list_app_folder_files(app_name, path=""):
+    base_path = frappe.get_app_path(app_name)
+
+    # ✅ If path is blank → show root of the app folder
+    clean_path = path.strip().lstrip("/").replace("..", "")
+    target_path = os.path.join(base_path, clean_path)
+
+    if not os.path.exists(target_path):
+        return []
+
+    files = []
+    for entry in os.listdir(target_path):
+        full = os.path.join(target_path, entry)
+        files.append({
+            "name": entry,
+            "is_file": os.path.isfile(full),
+            "is_dir": os.path.isdir(full),
+            "path": os.path.join(clean_path, entry) if clean_path else entry
+        })
+    return files
+
+
+# ✅ Reading file content
+@frappe.whitelist()
+def read_file_content(app_name, file_path):
+    if not app_name or not file_path:
+        frappe.throw("⚠️ Missing app name or file path")
+
+    clean_path = file_path.strip().lstrip("/").replace("..", "")
+    full_path = os.path.join(frappe.get_app_path(app_name), clean_path)
+
+    if not os.path.isfile(full_path):
+        frappe.throw(f"❌ File does not exist: {clean_path}")
+
+    try:
+        with open(full_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        frappe.throw(f"Failed to read file: {e}")
+
+
+# ✅ Save file with backup before overwriting
+@frappe.whitelist()
+def write_file_content_with_backup(app_name, file_path, content):
+    if not app_name or not file_path:
+        frappe.throw("⚠️ Missing app name or file path")
+
+    # 🔐 Sanitize path to prevent traversal attacks
+    clean_path = file_path.strip().lstrip("/").replace("..", "")
+    full = os.path.join(frappe.get_app_path(app_name), clean_path)
+
+    if not os.path.isfile(full):
+        frappe.throw(f"❌ Target file not found: {clean_path}")
+
+    # 🔹 Backup suffix
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    backup = f"{full}.bak.{ts}"
+
+    # ✅ Backup original file
+    try:
+        shutil.copy2(full, backup)
+    except Exception as e:
+        frappe.throw(f"⚠️ Backup failed: {e}")
+
+    # ✅ Write new version
+    try:
+        with open(full, "w", encoding="utf-8", newline="\n") as f:
+            f.write(content if content is not None else "")
+    except Exception as e:
+        frappe.throw(f"❌ File write failed: {e}")
+
+    return f"✅ Saved successfully 👍 Backup created: {os.path.basename(backup)}"

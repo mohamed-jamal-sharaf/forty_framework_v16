@@ -1,0 +1,180 @@
+# -*- coding: utf-8 -*-
+"""
+Server Access: فتح/تعديل ملفات الدوكتايب مباشرة من داخل Frappe
+يسمح بقراءة/حفظ ملفات: .py .js .json .md .html .css داخل مجلد doctype الفعلي.
+- يحمي من الخروج خارج المجلد (لا يسمح بـ .. أو /)
+- يعمل نسخة احتياطية تلقائيًا قبل كل حفظ
+- يحذف النسخ الاحتياطية القديمة ويبقي فقط آخر 3 نسخ
+"""
+
+import os
+import shutil
+import time
+import frappe
+from frappe.model.document import Document
+
+# الامتدادات المسموح تعديلها
+ALLOWED_EXT = {".py", ".js", ".json", ".md", ".html", ".css"}
+
+# -----------------------
+# DocType class
+# -----------------------
+class ServerAccess(Document):
+    # begin: auto-generated types
+    from typing import TYPE_CHECKING
+
+    if TYPE_CHECKING:
+        from frappe.types import DF
+        file_content: DF.Code | None
+        filename: DF.Literal[None]
+        last_op_log: DF.SmallText | None
+        target_doctype: DF.Link | None
+    # end: auto-generated types
+
+    pass
+
+
+# -----------------------
+# Helper: Check filename safety
+# -----------------------
+def _is_safe_filename(name: str) -> bool:
+    """تأكد أن الاسم آمن (بدون / أو \\ أو ..)."""
+    return bool(name) and ("/" not in name) and ("\\" not in name) and (".." not in name)
+
+
+# -----------------------
+# Helper: Get doctype folder path
+# -----------------------
+def _doctype_folder_path(doctype_name: str) -> str:
+    """
+    يرجّع المسار الفعلي لمجلد الدوكتايب:
+    apps/<app>/<app>/<module>/doctype/<scrubbed_doctype>
+    """
+    if not doctype_name:
+        frappe.throw("Target DocType is required.")
+
+    try:
+        doctype = frappe.get_doc("DocType", doctype_name)
+    except Exception:
+        frappe.throw(f"Invalid DocType: {doctype_name}")
+
+    module = doctype.module
+    module_path = frappe.get_module_path(module)
+    folder = frappe.scrub(doctype_name)
+    path = os.path.join(module_path, "doctype", folder)
+
+    if not os.path.isdir(path):
+        frappe.throw(f"Doctype folder not found: {path}")
+
+    return path
+
+
+# -----------------------
+# NEW: Cleanup old backups (keep only 3)
+# -----------------------
+def _cleanup_old_backups(full_path: str, keep: int = 3):
+    """
+    يحذف النسخ الاحتياطية القديمة ويُبقي فقط آخر (keep) نسخ.
+    backup format: <filename>.bak.YYYYmmdd-HHMMSS
+    """
+    folder = os.path.dirname(full_path)
+    filename = os.path.basename(full_path)
+
+    base_prefix = filename + ".bak."
+
+    backups = []
+    for fn in os.listdir(folder):
+        if fn.startswith(base_prefix):
+            backups.append(fn)
+
+    # ترتيب النسخ من الأقدم للأحدث
+    backups_sorted = sorted(backups)
+
+    # عدد النسخ الزائدة
+    excess = len(backups_sorted) - keep
+    if excess <= 0:
+        return
+
+    # حذف النسخ القديمة
+    for old in backups_sorted[:excess]:
+        try:
+            os.remove(os.path.join(folder, old))
+        except Exception:
+            pass
+
+
+# -----------------------
+# API: list files
+# -----------------------
+@frappe.whitelist()
+def list_doctype_files(target_doctype: str) -> list:
+    """إرجاع قائمة الملفات المسموح تعديلها داخل مجلد الدوكتايب."""
+    base = _doctype_folder_path(target_doctype)
+    files = []
+    for fn in sorted(os.listdir(base)):
+        full = os.path.join(base, fn)
+        if os.path.isfile(full):
+            _, ext = os.path.splitext(fn)
+            if ext.lower() in ALLOWED_EXT:
+                files.append(fn)
+    return files
+
+
+# -----------------------
+# API: read file
+# -----------------------
+@frappe.whitelist()
+def read_doctype_file(target_doctype: str, filename: str) -> str:
+    """قراءة محتوى ملف داخل مجلد الدوكتايب."""
+    if not _is_safe_filename(filename):
+        frappe.throw("Invalid file name.")
+
+    base = _doctype_folder_path(target_doctype)
+    full = os.path.join(base, filename)
+
+    if not os.path.isfile(full):
+        frappe.throw("File not found.")
+
+    with open(full, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+# -----------------------
+# API: save file with backup + cleanup
+# -----------------------
+@frappe.whitelist()
+def save_doctype_file(target_doctype: str, filename: str, content: str) -> str:
+    """
+    حفظ المحتوى في الملف المحدد مع إنشاء Backup تلقائي:
+    <filename>.bak.YYYYmmdd-HHMMSS
+    ويحفظ فقط آخر 3 نسخ احتياطية.
+    """
+    if not _is_safe_filename(filename):
+        frappe.throw("Invalid file name.")
+
+    base = _doctype_folder_path(target_doctype)
+    full = os.path.join(base, filename)
+
+    if not os.path.isfile(full):
+        frappe.throw("File not found.")
+
+    # إنشاء نسخة احتياطية
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    backup = f"{full}.bak.{ts}"
+
+    try:
+        shutil.copy2(full, backup)
+    except Exception as e:
+        frappe.throw(f"Failed to backup file: {e}")
+
+    # الكتابة في الملف
+    try:
+        with open(full, "w", encoding="utf-8", newline="\n") as f:
+            f.write(content if content is not None else "")
+    except Exception as e:
+        frappe.throw(f"Failed to write file: {e}")
+
+    # 🌟 NEW: تنظيف النسخ القديمة — إبقاء 3 فقط
+    _cleanup_old_backups(full)
+
+    return f"Saved. Backup: {backup}"

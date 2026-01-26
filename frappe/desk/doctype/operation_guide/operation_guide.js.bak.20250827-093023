@@ -1,0 +1,2639 @@
+/**
+ * Enhanced Operation Guide Manager for Frappe
+ * Provides a rich block-based editor for creating operation guides
+ */
+
+class OperationGuideManager {
+    constructor(frm) {
+        this.frm = frm;
+        this.blocks = [];
+        this.currentEditingBlock = null;
+        this.searchTerm = '';
+        this.showPageBreaks = false;
+        
+        // Enhanced properties
+        this.undoStack = [];
+        this.redoStack = [];
+        this.blockTemplates = this.getDefaultTemplates();
+        this.shortcuts = new Map();
+        this.observers = new Map();
+        
+        // A4 dimensions in pixels (at 96 DPI with margins)
+        this.A4_HEIGHT = 1040;
+        
+        // Performance optimization
+        this.debouncedSearch = this.debounce(this.performSearch.bind(this), 300);
+        
+        // Bind methods
+        this.bindMethods();
+        
+        this.init();
+    }
+
+    bindMethods() {
+        // Bind all methods to preserve context
+        const methods = [
+            'handleAddBlock', 'handleSearch', 'handleDragStart', 
+            'handleDragOver', 'handleDrop', 'handleKeyboard',
+            'handleDragEnd', 'handleDragEnter', 'handleDragLeave'
+        ];
+        
+        methods.forEach(method => {
+            this[method] = this[method].bind(this);
+        });
+    }
+
+    init() {
+        if (!this.frm.doc.__islocal) {
+            this.renderOperationUI();
+            this.loadExistingBlocks();
+            this.setupKeyboardShortcuts();
+            this.setupAutoSave();
+        } else {
+            this.renderSaveMessage();
+        }
+    }
+
+    // Enhanced template system
+    getDefaultTemplates() {
+        return {
+            'meeting_notes': {
+                name: 'Meeting Notes',
+                blocks: [
+                    { type: 'Header', content: 'Meeting Notes - [Date]' },
+                    { type: 'Title', content: 'Attendees' },
+                    { type: 'List', content: 'Name 1\nName 2\nName 3' },
+                    { type: 'Title', content: 'Agenda' },
+                    { type: 'Text', content: 'Meeting objectives...' },
+                    { type: 'Title', content: 'Action Items' },
+                    { type: 'List', content: 'Action item 1\nAction item 2' }
+                ]
+            },
+            'procedure': {
+                name: 'Standard Procedure',
+                blocks: [
+                    { type: 'Header', content: 'Procedure: [Name]' },
+                    { type: 'Title', content: 'Purpose' },
+                    { type: 'Text', content: 'This procedure describes...' },
+                    { type: 'Title', content: 'Steps' },
+                    { type: 'List', content: 'Step 1: ...\nStep 2: ...\nStep 3: ...' },
+                    { type: 'Title', content: 'Safety Considerations' },
+                    { type: 'Text', content: 'Important safety notes...' }
+                ]
+            }
+        };
+    }
+
+    setupKeyboardShortcuts() {
+        // Define keyboard shortcuts
+        this.shortcuts.set('ctrl+z', () => this.undo());
+        this.shortcuts.set('ctrl+y', () => this.redo());
+        this.shortcuts.set('ctrl+s', () => this.saveAll());
+        this.shortcuts.set('ctrl+/', () => this.showShortcutsHelp());
+        this.shortcuts.set('ctrl+n', () => this.handleAddBlock());
+        this.shortcuts.set('ctrl+f', () => this.focusSearch());
+        
+        // Setup listener
+        document.addEventListener('keydown', this.handleKeyboard);
+    }
+
+    handleKeyboard(e) {
+        const key = this.getKeyCombo(e);
+        const handler = this.shortcuts.get(key);
+        
+        if (handler) {
+            e.preventDefault();
+            handler();
+        }
+    }
+
+    getKeyCombo(e) {
+        const parts = [];
+        if (e.ctrlKey || e.metaKey) parts.push('ctrl');
+        if (e.altKey) parts.push('alt');
+        if (e.shiftKey) parts.push('shift');
+        
+        const key = e.key.toLowerCase();
+        if (key !== 'control' && key !== 'alt' && key !== 'shift' && key !== 'meta') {
+            parts.push(key);
+        }
+        
+        return parts.join('+');
+    }
+
+    setupAutoSave() {
+        // Auto-save draft to localStorage every 30 seconds
+        setInterval(() => {
+            this.saveDraft();
+        }, 30000);
+        
+        // Save on page unload
+        window.addEventListener('beforeunload', () => {
+            this.saveDraft();
+        });
+    }
+
+    saveDraft() {
+        const draft = {
+            blocks: this.blocks,
+            timestamp: new Date().toISOString()
+        };
+        
+        try {
+            localStorage.setItem(`operation_guide_draft_${this.frm.doc.name}`, JSON.stringify(draft));
+        } catch (e) {
+            console.warn('Failed to save draft:', e);
+        }
+    }
+
+    loadDraft() {
+        try {
+            const draft = localStorage.getItem(`operation_guide_draft_${this.frm.doc.name}`);
+            if (draft) {
+                const data = JSON.parse(draft);
+                frappe.show_alert({
+                    message: `Draft found from ${new Date(data.timestamp).toLocaleString()}. Load it?`,
+                    indicator: 'blue',
+                    actions: [
+                        {
+                            label: 'Load Draft',
+                            action: () => {
+                                this.blocks = data.blocks;
+                                this.renderBlocks();
+                                frappe.show_alert('Draft loaded', 'green');
+                            }
+                        },
+                        {
+                            label: 'Discard',
+                            action: () => {
+                                localStorage.removeItem(`operation_guide_draft_${this.frm.doc.name}`);
+                            }
+                        }
+                    ]
+                });
+            }
+        } catch (e) {
+            console.warn('Failed to load draft:', e);
+        }
+    }
+
+    // Undo/Redo functionality
+    pushToUndoStack(action) {
+        this.undoStack.push(action);
+        this.redoStack = []; // Clear redo stack on new action
+        
+        // Limit stack size
+        if (this.undoStack.length > 50) {
+            this.undoStack.shift();
+        }
+    }
+
+    async undo() {
+        if (this.undoStack.length === 0) {
+            frappe.show_alert('Nothing to undo', 'orange');
+            return;
+        }
+        
+        const action = this.undoStack.pop();
+        this.redoStack.push(action);
+        
+        await this.reverseAction(action);
+        frappe.show_alert('Action undone', 'blue');
+    }
+
+    async redo() {
+        if (this.redoStack.length === 0) {
+            frappe.show_alert('Nothing to redo', 'orange');
+            return;
+        }
+        
+        const action = this.redoStack.pop();
+        this.undoStack.push(action);
+        
+        await this.applyAction(action);
+        frappe.show_alert('Action redone', 'blue');
+    }
+
+    async reverseAction(action) {
+        switch (action.type) {
+            case 'add':
+                await this.deleteBlock(action.blockId, action.blockType, false);
+                break;
+            case 'delete':
+                await this.restoreBlock(action.blockData);
+                break;
+            case 'edit':
+                await this.updateBlock(action.blockId, action.fieldKey, { 
+                    [action.fieldKey]: action.oldValue 
+                });
+                break;
+            case 'reorder':
+                await this.reorderBlocks(action.fromId, action.toId);
+                break;
+        }
+        
+        await this.loadExistingBlocks();
+    }
+
+    async applyAction(action) {
+        switch (action.type) {
+            case 'add':
+                await this.restoreBlock(action.blockData);
+                break;
+            case 'delete':
+                await this.deleteBlock(action.blockId, action.blockType, false);
+                break;
+            case 'edit':
+                await this.updateBlock(action.blockId, action.fieldKey, { 
+                    [action.fieldKey]: action.newValue 
+                });
+                break;
+            case 'reorder':
+                await this.reorderBlocks(action.toId, action.fromId);
+                break;
+        }
+        
+        await this.loadExistingBlocks();
+    }
+
+    // Performance optimization - debounce utility
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Enhanced search with highlighting
+    handleSearch(e) {
+        this.searchTerm = e.target.value.toLowerCase();
+        this.debouncedSearch();
+    }
+
+    performSearch() {
+        const blocks = document.querySelectorAll('.operation-block');
+        let visibleCount = 0;
+        
+        blocks.forEach(block => {
+            const blockContent = block.textContent.toLowerCase();
+            const contentDiv = block.querySelector('.block-content-direct');
+            
+            if (!this.searchTerm || blockContent.includes(this.searchTerm)) {
+                block.style.display = 'block';
+                block.classList.add('fade-in');
+                visibleCount++;
+                
+                // Highlight search terms
+                if (this.searchTerm && contentDiv) {
+                    this.highlightSearchTerms(contentDiv, this.searchTerm);
+                } else if (contentDiv) {
+                    this.removeHighlights(contentDiv);
+                }
+            } else {
+                block.style.display = 'none';
+            }
+        });
+        
+        this.toggleEmptyState(visibleCount === 0);
+    }
+
+    highlightSearchTerms(element, searchTerm) {
+        this.removeHighlights(element);
+        
+        const walker = document.createTreeWalker(
+            element,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+        );
+        
+        const textNodes = [];
+        let node;
+        
+        while (node = walker.nextNode()) {
+            textNodes.push(node);
+        }
+        
+        textNodes.forEach(textNode => {
+            const text = textNode.textContent;
+            const regex = new RegExp(`(${searchTerm})`, 'gi');
+            
+            if (regex.test(text)) {
+                const span = document.createElement('span');
+                span.innerHTML = text.replace(regex, '<mark class="search-highlight">$1</mark>');
+                textNode.parentNode.replaceChild(span, textNode);
+            }
+        });
+    }
+
+    removeHighlights(element) {
+        element.querySelectorAll('mark.search-highlight').forEach(mark => {
+            const parent = mark.parentNode;
+            parent.replaceChild(document.createTextNode(mark.textContent), mark);
+            parent.normalize();
+        });
+    }
+
+    focusSearch() {
+        const searchInput = document.getElementById('block_search');
+        if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
+        }
+    }
+
+    showShortcutsHelp() {
+        const shortcuts = [
+            { keys: 'Ctrl+N', description: 'Add new block' },
+            { keys: 'Ctrl+Z', description: 'Undo last action' },
+            { keys: 'Ctrl+Y', description: 'Redo last action' },
+            { keys: 'Ctrl+S', description: 'Save all changes' },
+            { keys: 'Ctrl+F', description: 'Focus search' },
+            { keys: 'Ctrl+/', description: 'Show this help' }
+        ];
+        
+        let html = `
+            <div class="shortcuts-help">
+                <h4>Keyboard Shortcuts</h4>
+                <table class="table table-sm">
+                    <tbody>
+        `;
+        
+        shortcuts.forEach(shortcut => {
+            html += `
+                <tr>
+                    <td><kbd>${shortcut.keys}</kbd></td>
+                    <td>${shortcut.description}</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        frappe.msgprint({
+            title: '⌨️ Keyboard Shortcuts',
+            message: html,
+            indicator: 'blue'
+        });
+    }
+
+    // Enhanced block creation with templates
+    async showBlockTypePopup() {
+        const blockTypes = [
+            { type: "Header", icon: "📑", description: "Section headers" },
+            { type: "Title", icon: "📌", description: "Important titles" },
+            { type: "List", icon: "📋", description: "Bullet point lists" },
+            { type: "Text", icon: "📝", description: "Paragraph content" },
+            { type: "JS Code", icon: "🟨", description: "JavaScript code" },
+            { type: "Python Code", icon: "🐍", description: "Python code" },
+            { type: "Photo", icon: "📷", description: "Images and photos" },
+            { type: "Attachment", icon: "📎", description: "File attachments" },
+            { type: "Link", icon: "🔗", description: "External links" },
+            { type: "Template", icon: "📄", description: "Use template", special: true }
+        ];
+
+        let html = `<div class="block-type-grid">`;
+        blockTypes.forEach(type => {
+            const extraClass = type.special ? 'block-type-special' : '';
+            html += `
+                <div class="block-type-option ${extraClass}" data-type="${type.type}">
+                    <span class="icon">${type.icon}</span>
+                    <div class="title">${type.type}</div>
+                    <div class="description">${type.description}</div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+
+        const dialog = new frappe.ui.Dialog({
+            title: "➕ Choose Block Type",
+            fields: [{ fieldname: "type_list", fieldtype: "HTML", options: html }],
+            size: "large"
+        });
+
+        dialog.show();
+
+        $(dialog.$wrapper)
+            .find('.block-type-option')
+            .on('click', (e) => {
+                const blockType = $(e.currentTarget).data("type");
+                dialog.hide();
+                
+                if (blockType === 'Template') {
+                    this.showTemplateSelector();
+                } else {
+                    this.openBlockInputDialog(blockType);
+                }
+            });
+    }
+
+    async showTemplateSelector() {
+        let html = `<div class="template-grid">`;
+        
+        Object.entries(this.blockTemplates).forEach(([key, template]) => {
+            html += `
+                <div class="template-option" data-template="${key}">
+                    <h5>${template.name}</h5>
+                    <p>${template.blocks.length} blocks</p>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+        
+        const dialog = new frappe.ui.Dialog({
+            title: "📄 Choose Template",
+            fields: [{ fieldname: "templates", fieldtype: "HTML", options: html }]
+        });
+        
+        dialog.show();
+        
+        $(dialog.$wrapper)
+            .find('.template-option')
+            .on('click', async (e) => {
+                const templateKey = $(e.currentTarget).data("template");
+                const template = this.blockTemplates[templateKey];
+                dialog.hide();
+                
+                await this.applyTemplate(template);
+            });
+    }
+
+    async applyTemplate(template) {
+        frappe.show_alert('Applying template...', 'blue');
+        
+        for (const blockDef of template.blocks) {
+            const fieldKey = blockDef.type.toLowerCase().replace(" ", "_");
+            await this.createBlock(fieldKey, {
+                [fieldKey]: blockDef.content,
+                operation_guide_title: this.frm.doc.operation_guide_title
+            }, blockDef.type, false);
+        }
+        
+        await this.loadExistingBlocks();
+        frappe.show_alert(`Template "${template.name}" applied!`, 'green');
+    }
+
+    // Enhanced drag and drop with visual feedback
+    initializeDragAndDrop() {
+        const container = document.getElementById('operation_blocks_wrapper');
+        if (!container) return;
+
+        // Setup Intersection Observer for lazy loading
+        this.setupIntersectionObserver();
+
+        // Use event delegation for better performance
+        container.addEventListener('dragstart', this.handleDragStart);
+        container.addEventListener('dragend', this.handleDragEnd);
+        container.addEventListener('dragover', this.handleDragOver);
+        container.addEventListener('dragenter', this.handleDragEnter);
+        container.addEventListener('dragleave', this.handleDragLeave);
+        container.addEventListener('drop', this.handleDrop);
+
+        // Touch support
+        this.addTouchSupport();
+    }
+
+    setupIntersectionObserver() {
+        const observerOptions = {
+            root: null,
+            rootMargin: '50px',
+            threshold: 0.01
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                        observer.unobserve(img);
+                    }
+                }
+            });
+        }, observerOptions);
+
+        // Observe all images with data-src
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            observer.observe(img);
+        });
+
+        this.observers.set('images', observer);
+    }
+
+    addTouchSupport() {
+        let touchItem = null;
+        let touchOffset = { x: 0, y: 0 };
+
+        const container = document.getElementById('operation_blocks_wrapper');
+
+        container.addEventListener('touchstart', (e) => {
+            const block = e.target.closest('.operation-block');
+            if (!block) return;
+
+            touchItem = block;
+            const touch = e.touches[0];
+            const rect = block.getBoundingClientRect();
+            touchOffset.x = touch.clientX - rect.left;
+            touchOffset.y = touch.clientY - rect.top;
+
+            block.style.opacity = '0.8';
+            block.style.transition = 'none';
+        });
+
+        container.addEventListener('touchmove', (e) => {
+            if (!touchItem) return;
+            e.preventDefault();
+
+            const touch = e.touches[0];
+            touchItem.style.position = 'fixed';
+            touchItem.style.zIndex = '1000';
+            touchItem.style.left = `${touch.clientX - touchOffset.x}px`;
+            touchItem.style.top = `${touch.clientY - touchOffset.y}px`;
+            touchItem.style.pointerEvents = 'none';
+
+            // Find drop target
+            const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+            const dropBlock = dropTarget?.closest('.operation-block');
+
+            document.querySelectorAll('.operation-block').forEach(block => {
+                block.classList.remove('drag-over');
+            });
+
+            if (dropBlock && dropBlock !== touchItem) {
+                dropBlock.classList.add('drag-over');
+            }
+        });
+
+        container.addEventListener('touchend', async (e) => {
+            if (!touchItem) return;
+
+            const touch = e.changedTouches[0];
+            const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+            const dropBlock = dropTarget?.closest('.operation-block');
+
+            if (dropBlock && dropBlock !== touchItem) {
+                await this.reorderBlocksByDrop(
+                    touchItem.dataset.blockId,
+                    dropBlock.dataset.blockId
+                );
+            }
+
+            // Reset styles
+            touchItem.style.position = '';
+            touchItem.style.opacity = '';
+            touchItem.style.zIndex = '';
+            touchItem.style.left = '';
+            touchItem.style.top = '';
+            touchItem.style.pointerEvents = '';
+            touchItem.style.transition = '';
+
+            document.querySelectorAll('.operation-block').forEach(block => {
+                block.classList.remove('drag-over');
+            });
+
+            touchItem = null;
+        });
+    }
+
+    // Enhanced error handling
+    async handleError(error, context) {
+        console.error(`Error in ${context}:`, error);
+        
+        const errorMessage = error.message || 'An unexpected error occurred';
+        
+        frappe.show_alert({
+            message: `❌ ${errorMessage}`,
+            indicator: 'red',
+            actions: [{
+                label: 'Report Issue',
+                action: () => {
+                    this.reportError(error, context);
+                }
+            }]
+        });
+        
+        // Log to server if needed
+        if (this.shouldLogError(error)) {
+            await this.logErrorToServer(error, context);
+        }
+    }
+
+    shouldLogError(error) {
+        // Don't log network errors or user cancellations
+        return !(error.name === 'NetworkError' || error.name === 'AbortError');
+    }
+
+    async logErrorToServer(error, context) {
+        try {
+            await frappe.call({
+                method: 'frappe.utils.error.log_error',
+                args: {
+                    title: `Operation Guide Error: ${context}`,
+                    error: error.stack || error.message
+                }
+            });
+        } catch (e) {
+            console.error('Failed to log error to server:', e);
+        }
+    }
+
+    reportError(error, context) {
+        const report = `
+Context: ${context}
+Error: ${error.message}
+Stack: ${error.stack || 'N/A'}
+Browser: ${navigator.userAgent}
+Time: ${new Date().toISOString()}
+        `;
+        
+        frappe.msgprint({
+            title: 'Error Report',
+            message: `<pre>${frappe.utils.escape_html(report)}</pre>`,
+            indicator: 'red'
+        });
+    }
+
+    // Cleanup
+    destroy() {
+        // Remove event listeners
+        document.removeEventListener('keydown', this.handleKeyboard);
+        
+        // Clear observers
+        this.observers.forEach(observer => observer.disconnect());
+        this.observers.clear();
+        
+        // Clear intervals
+        if (this.autoSaveInterval) {
+            clearInterval(this.autoSaveInterval);
+        }
+        
+        // Save draft one last time
+        this.saveDraft();
+        
+        // Cleanup global references
+        this.cleanupBlockData();
+    }
+
+    // Enhanced rendering methods
+    renderBlockContent(block, index) {
+        const content = this.getBlockMainContent(block);
+        const blockType = this.getBlockType(block);
+        
+        if (!content) {
+            return "<p style='color: #7f8c8d; font-style: italic;'>Empty block</p>";
+        }
+
+        switch (blockType) {
+            case 'Header':
+                return `<h1 style="color: #2c3e50; margin: 0; font-size: 28px; font-weight: 700; border-bottom: 3px solid #3498db; padding-bottom: 10px;">${this.sanitizeContent(block.header)}</h1>`;
+                
+            case 'Title':
+                return `<h3 style="color: #34495e; margin: 0; font-size: 22px; font-weight: 600;">${this.sanitizeContent(block.title)}</h3>`;
+                
+            case 'List':
+                const items = block.list.split("\n").filter(item => item.trim());
+                return `<ul style="margin: 0; padding-left: 20px; line-height: 1.6;">${items.map(item => `<li style="margin-bottom: 8px;">${this.sanitizeContent(item)}</li>`).join("")}</ul>`;
+                
+            case 'Text':
+                return `<div style="margin: 0; white-space: pre-wrap; line-height: 1.6; color: #2c3e50; font-size: 15px;">${this.sanitizeContent(block.text)}</div>`;
+                
+            case 'JS Code':
+                return this.renderEnhancedCodeBlock(block.js_code, "javascript", `js_${index}`);
+                
+            case 'Python Code':
+                return this.renderEnhancedCodeBlock(block.python_code, "python", `py_${index}`);
+                
+            case 'Photo':
+                return this.renderEnhancedPhotoBlock(block.photo, `photo_${index}`);
+                
+            case 'Attachment':
+                const fileName = block.attachment.split('/').pop();
+                const fileExt = fileName.split('.').pop().toLowerCase();
+                const icon = this.getFileIcon(fileExt);
+                return `
+                    <a href="${block.attachment}" target="_blank" class="attachment-link">
+                        <span class="file-icon">${icon}</span>
+                        <span class="file-name">${fileName}</span>
+                        <span class="file-size">${this.formatFileSize(0)}</span>
+                    </a>
+                `;
+                
+            case 'Link':
+                const domain = new URL(block.link).hostname;
+                return `
+                    <a href="${block.link}" target="_blank" class="external-link">
+                        <img src="https://www.google.com/s2/favicons?domain=${domain}" alt="" class="favicon">
+                        <span>${block.link}</span>
+                        <i class="fa fa-external-link"></i>
+                    </a>
+                `;
+                
+            default:
+                return "<p style='color: #7f8c8d; font-style: italic;'>Unknown block type</p>";
+        }
+    }
+
+    getBlockMainContent(block) {
+        const fields = ['header', 'title', 'list', 'text', 'js_code', 'python_code', 'photo', 'attachment', 'link'];
+        for (const field of fields) {
+            if (block[field]) return block[field];
+        }
+        return null;
+    }
+
+    sanitizeContent(content) {
+        // Enhanced XSS protection
+        const div = document.createElement('div');
+        div.textContent = content;
+        return div.innerHTML;
+    }
+
+    getFileIcon(extension) {
+        const iconMap = {
+            pdf: '📄',
+            doc: '📝',
+            docx: '📝',
+            xls: '📊',
+            xlsx: '📊',
+            ppt: '📊',
+            pptx: '📊',
+            zip: '🗜️',
+            rar: '🗜️',
+            mp4: '🎥',
+            mp3: '🎵',
+            png: '🖼️',
+            jpg: '🖼️',
+            jpeg: '🖼️',
+            gif: '🖼️'
+        };
+        
+        return iconMap[extension] || '📎';
+    }
+
+    formatFileSize(bytes) {
+        // TODO: Get actual file size from server
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        if (bytes === 0) return 'Unknown size';
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    renderEnhancedCodeBlock(code, language, id) {
+        const lines = code.split("\n");
+        const isLong = lines.length > 10;
+        
+        // Add line numbers
+        const numberedLines = lines.map((line, i) => ({
+            number: i + 1,
+            content: line
+        }));
+        
+        const displayLines = isLong ? numberedLines.slice(0, 10) : numberedLines;
+        
+        let html = `
+            <div class="enhanced-code-block" id="${id}" data-language="${language}">
+                <div class="code-header">
+                    <span class="code-language">${language}</span>
+                    <div class="code-actions">
+                        <button class="code-action-btn" onclick="window.copyCodeBlock('${id}')" title="Copy">
+                            <i class="fa fa-copy"></i>
+                        </button>
+                        ${isLong ? `
+                            <button class="code-action-btn" onclick="window.toggleCodeExpansion('${id}')" title="Expand">
+                                <i class="fa fa-expand"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="code-content">
+                    <table class="code-table">
+                        <tbody>
+        `;
+        
+        displayLines.forEach(line => {
+            html += `
+                <tr>
+                    <td class="line-number">${line.number}</td>
+                    <td class="line-content"><pre>${this.sanitizeContent(line.content)}</pre></td>
+                </tr>
+            `;
+        });
+        
+        if (isLong) {
+            html += `
+                <tr class="code-more">
+                    <td colspan="2">... ${lines.length - 10} more lines</td>
+                </tr>
+            `;
+        }
+        
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        // Store full code for expansion
+        if (isLong) {
+            setTimeout(() => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.dataset.fullCode = btoa(unescape(encodeURIComponent(code)));
+                }
+            }, 0);
+        }
+        
+        return html;
+    }
+
+    renderEnhancedPhotoBlock(photoUrl, id) {
+        // Use lazy loading for performance
+        return `
+            <div class="enhanced-photo-container" id="${id}_container">
+                <div class="photo-toolbar">
+                    <div class="zoom-controls">
+                        <button class="photo-btn" onclick="window.zoomPhotoOut('${id}')" title="Zoom Out">
+                            <i class="fa fa-search-minus"></i>
+                        </button>
+                        <span class="zoom-level" id="${id}_zoom">100%</span>
+                        <button class="photo-btn" onclick="window.zoomPhotoIn('${id}')" title="Zoom In">
+                            <i class="fa fa-search-plus"></i>
+                        </button>
+                    </div>
+                    <div class="photo-actions">
+                        <button class="photo-btn" onclick="window.rotatePhoto('${id}', -90)" title="Rotate Left">
+                            <i class="fa fa-undo"></i>
+                        </button>
+                        <button class="photo-btn" onclick="window.rotatePhoto('${id}', 90)" title="Rotate Right">
+                            <i class="fa fa-redo"></i>
+                        </button>
+                        <button class="photo-btn" onclick="window.resetPhoto('${id}')" title="Reset">
+                            <i class="fa fa-refresh"></i>
+                        </button>
+                        <button class="photo-btn" onclick="window.downloadPhoto('${id}')" title="Download">
+                            <i class="fa fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="photo-viewport" id="${id}_viewport">
+                    <img 
+                        data-src="${photoUrl}"
+                        id="${id}"
+                        class="enhanced-photo lazy"
+                        alt="Operation Guide Photo"
+                        draggable="false"
+                        onload="window.onPhotoLoad('${id}')"
+                    >
+                    <div class="photo-loading">
+                        <i class="fa fa-spinner fa-spin"></i>
+                    </div>
+                </div>
+                <div class="photo-info" id="${id}_info">
+                    <span class="info-item">
+                        <i class="fa fa-arrows-alt"></i> 
+                        <span id="${id}_dimensions">Loading...</span>
+                    </span>
+                    <span class="info-item">
+                        <i class="fa fa-file"></i> 
+                        <span id="${id}_filesize">Calculating...</span>
+                    </span>
+                </div>
+            </div>
+        `;
+    }
+
+    // Save all changes
+    async saveAll() {
+        try {
+            frappe.show_alert('💾 Saving all changes...', 'blue');
+            
+            // Save any pending edits
+            if (this.currentEditingBlock) {
+                // Handle inline editing saves
+            }
+            
+            // Save the main document
+            await this.frm.save();
+            
+            frappe.show_alert('✅ All changes saved!', 'green');
+        } catch (error) {
+            await this.handleError(error, 'saveAll');
+        }
+    }
+
+    // Enhanced PDF Export with better formatting
+    async exportToPDF() {
+        try {
+            frappe.show_alert({
+                message: '📄 Preparing PDF export...',
+                indicator: 'blue'
+            });
+
+            // Show export options dialog
+            const exportOptions = await this.showExportOptions();
+            if (!exportOptions) return;
+
+            const printContent = this.generateEnhancedPrintContent(exportOptions);
+            const styles = this.getPrintStyles(exportOptions);
+            
+            // Create print window
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${this.frm.doc.operation_guide_title || 'Operation Guide'} - Export</title>
+                    ${styles}
+                </head>
+                <body>
+                    ${printContent}
+                    <script>
+                        window.onload = function() {
+                            // Give images time to load
+                            setTimeout(() => {
+                                window.print();
+                                window.onafterprint = function() {
+                                    window.close();
+                                };
+                            }, 1000);
+                        };
+                    </script>
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            
+        } catch (error) {
+            await this.handleError(error, 'exportToPDF');
+        }
+    }
+
+    async showExportOptions() {
+        return new Promise((resolve) => {
+            const dialog = new frappe.ui.Dialog({
+                title: '📄 PDF Export Options',
+                fields: [
+                    {
+                        fieldname: 'include_descriptions',
+                        label: 'Include Descriptions',
+                        fieldtype: 'Check',
+                        default: 1
+                    },
+                    {
+                        fieldname: 'include_timestamps',
+                        label: 'Include Timestamps',
+                        fieldtype: 'Check',
+                        default: 0
+                    },
+                    {
+                        fieldname: 'page_numbers',
+                        label: 'Show Page Numbers',
+                        fieldtype: 'Check',
+                        default: 1
+                    },
+                    {
+                        fieldname: 'table_of_contents',
+                        label: 'Include Table of Contents',
+                        fieldtype: 'Check',
+                        default: 0
+                    },
+                    {
+                        fieldname: 'orientation',
+                        label: 'Page Orientation',
+                        fieldtype: 'Select',
+                        options: 'Portrait\nLandscape',
+                        default: 'Portrait'
+                    }
+                ],
+                primary_action_label: 'Export',
+                primary_action: (values) => {
+                    dialog.hide();
+                    resolve(values);
+                },
+                secondary_action_label: 'Cancel'
+            });
+            
+            dialog.show();
+        });
+    }
+
+    generateEnhancedPrintContent(options) {
+        let html = '';
+        
+        // Header
+        html += `
+            <div class="print-header">
+                <h1>${this.frm.doc.operation_guide_title || 'Operation Guide'}</h1>
+                <div class="header-meta">
+                    <span>Generated: ${new Date().toLocaleDateString()}</span>
+                    <span>${this.blocks.length} blocks</span>
+                </div>
+            </div>
+        `;
+        
+        // Table of Contents
+        if (options.table_of_contents) {
+            html += this.generateTableOfContents();
+        }
+        
+        // Blocks
+        html += '<div class="print-content">';
+        
+        this.blocks.forEach((block, index) => {
+            html += this.generatePrintBlock(block, index, options);
+        });
+        
+        html += '</div>';
+        
+        // Footer
+        if (options.page_numbers) {
+            html += `
+                <div class="print-footer">
+                    <span class="page-number"></span>
+                </div>
+            `;
+        }
+        
+        return html;
+    }
+
+    generateTableOfContents() {
+        let html = '<div class="table-of-contents">';
+        html += '<h2>Table of Contents</h2>';
+        html += '<ol>';
+        
+        this.blocks.forEach((block, index) => {
+            const blockType = this.getBlockType(block);
+            if (blockType === 'Header' || blockType === 'Title') {
+                const content = block.header || block.title;
+                html += `<li><a href="#block-${index}">${this.sanitizeContent(content)}</a></li>`;
+            }
+        });
+        
+        html += '</ol></div>';
+        return html;
+    }
+
+    generatePrintBlock(block, index, options) {
+        let html = `<div class="print-block" id="block-${index}">`;
+        
+        // Block content
+        html += this.renderBlockContent(block, index);
+        
+        // Description
+        if (options.include_descriptions && block.description) {
+            html += `
+                <div class="print-description">
+                    ${this.sanitizeContent(block.description)}
+                </div>
+            `;
+        }
+        
+        // Timestamp
+        if (options.include_timestamps) {
+            html += `
+                <div class="print-timestamp">
+                    Last modified: ${new Date(block.modified).toLocaleString()}
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        return html;
+    }
+
+    getPrintStyles(options) {
+        const orientation = options.orientation.toLowerCase();
+        
+        return `
+            <style>
+                @page {
+                    size: A4 ${orientation};
+                    margin: 20mm;
+                    @top-center {
+                        content: "${this.frm.doc.operation_guide_title || 'Operation Guide'}";
+                    }
+                    ${options.page_numbers ? `
+                        @bottom-center {
+                            content: "Page " counter(page) " of " counter(pages);
+                        }
+                    ` : ''}
+                }
+                
+                * {
+                    box-sizing: border-box;
+                }
+                
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    margin: 0;
+                    padding: 0;
+                }
+                
+                .print-header {
+                    text-align: center;
+                    margin-bottom: 40px;
+                    padding-bottom: 20px;
+                    border-bottom: 3px solid #3498db;
+                }
+                
+                .print-header h1 {
+                    color: #2c3e50;
+                    margin: 0 0 10px 0;
+                }
+                
+                .header-meta {
+                    color: #7f8c8d;
+                    font-size: 14px;
+                }
+                
+                .header-meta span {
+                    margin: 0 10px;
+                }
+                
+                .table-of-contents {
+                    margin-bottom: 40px;
+                    page-break-after: always;
+                }
+                
+                .table-of-contents h2 {
+                    color: #2c3e50;
+                    border-bottom: 2px solid #e9ecef;
+                    padding-bottom: 10px;
+                }
+                
+                .table-of-contents ol {
+                    line-height: 2;
+                }
+                
+                .table-of-contents a {
+                    text-decoration: none;
+                    color: #3498db;
+                }
+                
+                .print-block {
+                    margin-bottom: 30px;
+                    break-inside: avoid;
+                    page-break-inside: avoid;
+                }
+                
+                .print-description {
+                    margin-top: 10px;
+                    padding: 10px;
+                    background: #f8f9fa;
+                    border-left: 4px solid #6c757d;
+                    font-style: italic;
+                    color: #6c757d;
+                    font-size: 14px;
+                }
+                
+                .print-timestamp {
+                    margin-top: 5px;
+                    font-size: 11px;
+                    color: #adb5bd;
+                    text-align: right;
+                }
+                
+                .enhanced-code-block,
+                .code-block {
+                    background: #f8f9fa;
+                    border: 1px solid #dee2e6;
+                    border-radius: 4px;
+                    padding: 15px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    overflow-wrap: break-word;
+                    page-break-inside: avoid;
+                }
+                
+                .code-header {
+                    display: none; /* Hide interactive elements in print */
+                }
+                
+                .line-number {
+                    color: #6c757d;
+                    padding-right: 10px;
+                    text-align: right;
+                    user-select: none;
+                }
+                
+                img {
+                    max-width: 100%;
+                    height: auto;
+                    display: block;
+                    margin: 0 auto;
+                    page-break-inside: avoid;
+                }
+                
+                .enhanced-photo-container {
+                    text-align: center;
+                    margin: 20px 0;
+                }
+                
+                .photo-toolbar,
+                .photo-info {
+                    display: none; /* Hide interactive elements in print */
+                }
+                
+                h1, h2, h3, h4, h5, h6 {
+                    color: #2c3e50;
+                    page-break-after: avoid;
+                }
+                
+                ul, ol {
+                    padding-left: 20px;
+                }
+                
+                li {
+                    margin-bottom: 5px;
+                }
+                
+                .attachment-link,
+                .external-link {
+                    display: inline-block;
+                    padding: 8px 16px;
+                    background: #f8f9fa;
+                    border: 1px solid #dee2e6;
+                    border-radius: 4px;
+                    text-decoration: none;
+                    color: #495057;
+                }
+                
+                .attachment-link .file-icon,
+                .external-link .favicon {
+                    margin-right: 8px;
+                }
+                
+                @media print {
+                    .no-print {
+                        display: none !important;
+                    }
+                }
+            </style>
+        `;
+    }
+
+    // Method to handle block creation
+    async createBlock(fieldKey, values, type, trackUndo = true) {
+        try {
+            const result = await new Promise((resolve, reject) => {
+                frappe.call({
+                    method: "frappe.client.insert",
+                    args: {
+                        doc: {
+                            doctype: "Operation Guide DATA",
+                            operation_guide_title: values.operation_guide_title,
+                            block_type: type,
+                            [fieldKey]: values[fieldKey],
+                            description: values.description || ''
+                        }
+                    },
+                    callback: (r) => {
+                        if (r.exc) {
+                            reject(new Error(r.exc));
+                        } else {
+                            resolve(r.message);
+                        }
+                    }
+                });
+            });
+            
+            if (trackUndo) {
+                this.pushToUndoStack({
+                    type: 'add',
+                    blockId: result.name,
+                    blockType: type,
+                    blockData: result
+                });
+            }
+            
+            return result;
+        } catch (error) {
+            await this.handleError(error, 'createBlock');
+            throw error;
+        }
+    }
+
+    // Add required styles
+    addStyles() {
+        if (document.getElementById('operation-guide-styles')) return;
+        
+        const existingStyles = document.head.querySelector('style[id="operation-guide-styles"]')?.textContent || '';
+        
+        const enhancedStyles = `
+            ${existingStyles}
+            
+            /* Enhanced styles */
+            .search-highlight {
+                background-color: #fff3cd;
+                padding: 2px 0;
+                border-radius: 2px;
+            }
+            
+            .shortcuts-help kbd {
+                display: inline-block;
+                padding: 3px 6px;
+                font-size: 12px;
+                line-height: 1;
+                color: #444;
+                background-color: #fafafa;
+                border: 1px solid #ccc;
+                border-radius: 3px;
+                box-shadow: 0 1px 0 rgba(0,0,0,0.1);
+                font-family: monospace;
+            }
+            
+            .template-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 15px;
+                padding: 20px;
+            }
+            
+            .template-option {
+                background: white;
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                padding: 20px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            
+            .template-option:hover {
+                border-color: #3498db;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
+            
+            .template-option h5 {
+                margin: 0 0 10px 0;
+                color: #2c3e50;
+            }
+            
+            .template-option p {
+                margin: 0;
+                color: #7f8c8d;
+                font-size: 14px;
+            }
+            
+            .block-type-special {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+            
+            .block-type-special:hover {
+                transform: scale(1.05);
+            }
+            
+            .block-type-special .title,
+            .block-type-special .description {
+                color: white !important;
+            }
+            
+            .enhanced-code-block {
+                background: #2d3748;
+                border-radius: 8px;
+                overflow: hidden;
+                margin: 10px 0;
+            }
+            
+            .code-header {
+                background: #1a202c;
+                padding: 8px 15px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid #4a5568;
+            }
+            
+            .code-language {
+                color: #63b3ed;
+                font-weight: 600;
+                font-size: 12px;
+                text-transform: uppercase;
+            }
+            
+            .code-actions {
+                display: flex;
+                gap: 8px;
+            }
+            
+            .code-action-btn {
+                background: #4a5568;
+                border: none;
+                color: #e2e8f0;
+                padding: 4px 8px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+                transition: all 0.2s ease;
+            }
+            
+            .code-action-btn:hover {
+                background: #718096;
+            }
+            
+            .code-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            
+            .code-table td {
+                padding: 0;
+                vertical-align: top;
+            }
+            
+            .line-number {
+                color: #718096;
+                text-align: right;
+                padding: 2px 10px;
+                user-select: none;
+                font-size: 12px;
+                font-family: 'Monaco', 'Menlo', monospace;
+            }
+            
+            .line-content {
+                padding: 2px 10px;
+                color: #e2e8f0;
+            }
+            
+            .line-content pre {
+                margin: 0;
+                font-family: 'Monaco', 'Menlo', monospace;
+                font-size: 14px;
+            }
+            
+            .code-more {
+                text-align: center;
+                color: #718096;
+                font-style: italic;
+                background: #374151;
+            }
+            
+            .code-more td {
+                padding: 10px;
+            }
+            
+            .enhanced-photo-container {
+                background: #f8f9fa;
+                border-radius: 8px;
+                overflow: hidden;
+                margin: 10px 0;
+            }
+            
+            .photo-toolbar {
+                background: #e9ecef;
+                padding: 10px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .zoom-controls {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            .zoom-level {
+                font-weight: 600;
+                color: #495057;
+                min-width: 50px;
+                text-align: center;
+            }
+            
+            .photo-actions {
+                display: flex;
+                gap: 5px;
+            }
+            
+            .photo-btn {
+                background: white;
+                border: 1px solid #ced4da;
+                color: #495057;
+                padding: 6px 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 14px;
+            }
+            
+            .photo-btn:hover {
+                background: #f8f9fa;
+                border-color: #adb5bd;
+            }
+            
+            .photo-btn:active {
+                transform: scale(0.95);
+            }
+            
+            .photo-viewport {
+                position: relative;
+                background: white;
+                min-height: 300px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: auto;
+                cursor: grab;
+            }
+            
+            .photo-viewport:active {
+                cursor: grabbing;
+            }
+            
+            .enhanced-photo {
+                max-width: none;
+                height: auto;
+                display: block;
+                transition: transform 0.2s ease;
+            }
+            
+            .enhanced-photo.lazy {
+                filter: blur(5px);
+            }
+            
+            .enhanced-photo.loaded {
+                filter: none;
+            }
+            
+            .photo-loading {
+                position: absolute;
+                font-size: 32px;
+                color: #6c757d;
+                animation: spin 1s linear infinite;
+            }
+            
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            
+            .photo-info {
+                background: #f8f9fa;
+                padding: 8px 15px;
+                display: flex;
+                justify-content: space-between;
+                font-size: 12px;
+                color: #6c757d;
+                border-top: 1px solid #e9ecef;
+            }
+            
+            .info-item {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            
+            .attachment-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                padding: 12px 20px;
+                background: white;
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                text-decoration: none;
+                color: #495057;
+                transition: all 0.2s ease;
+            }
+            
+            .attachment-link:hover {
+                border-color: #3498db;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
+            
+            .file-icon {
+                font-size: 24px;
+            }
+            
+            .file-name {
+                font-weight: 600;
+            }
+            
+            .file-size {
+                font-size: 12px;
+                color: #6c757d;
+            }
+            
+            .external-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 16px;
+                background: white;
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                text-decoration: none;
+                color: #495057;
+                transition: all 0.2s ease;
+            }
+            
+            .external-link:hover {
+                border-color: #3498db;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
+            
+            .favicon {
+                width: 16px;
+                height: 16px;
+            }
+            
+            /* Mobile enhancements */
+            @media (max-width: 768px) {
+                .photo-toolbar {
+                    justify-content: center;
+                }
+                
+                .photo-actions {
+                    order: -1;
+                    width: 100%;
+                    justify-content: center;
+                }
+                
+                .enhanced-code-block {
+                    font-size: 12px;
+                }
+                
+                .line-content pre {
+                    font-size: 12px;
+                }
+            }
+            
+            /* Dark mode support */
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg-color: #1a202c;
+                    --text-color: #e2e8f0;
+                    --border-color: #4a5568;
+                }
+                
+                /* Apply dark mode styles as needed */
+            }
+        `;
+        
+        const styleElement = document.createElement('style');
+        styleElement.id = 'operation-guide-styles';
+        styleElement.textContent = enhancedStyles;
+        document.head.appendChild(styleElement);
+    }
+
+    renderSaveMessage() {
+        const wrapper = this.frm.fields_dict.operation_guide_contant.$wrapper;
+        wrapper.html(`
+            <div class="operation-guide-save-message">
+                <div class="save-message-content">
+                    <i class="fa fa-info-circle"></i>
+                    <h4>Operation Guide Editor</h4>
+                    <p>Please save the document first to enable the operation guide editor.</p>
+                    <button class="btn btn-primary btn-sm" onclick="cur_frm.save()">
+                        <i class="fa fa-save"></i> Save Document
+                    </button>
+                </div>
+            </div>
+        `);
+        
+        this.addStyles();
+    }
+
+    renderOperationUI() {
+        const wrapper = this.frm.fields_dict.operation_guide_contant.$wrapper;
+        wrapper.html(`
+            <div id="operation_guide_ui" class="operation-guide-container">
+                <!-- Header Controls -->
+                <div class="operation-guide-header">
+                    <div class="header-left">
+                        <div class="search-container">
+                            <input type="text" 
+                                   id="block_search" 
+                                   placeholder="Search blocks..." 
+                                   class="form-control search-input">
+                            <i class="fa fa-search search-icon"></i>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <button id="toggle_page_breaks" 
+                                class="btn btn-outline-secondary" 
+                                title="Toggle A4 Page Breaks">
+                            <i class="fa fa-file-text-o"></i> Page Breaks
+                        </button>
+                        <button id="save_all" 
+                                class="btn btn-outline-primary" 
+                                title="Save All Changes">
+                            <i class="fa fa-save"></i> Save
+                        </button>
+                        <button id="export_pdf" 
+                                class="pdf-export-btn" 
+                                title="Export to PDF">
+                            <i class="fa fa-file-pdf-o"></i> Export PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Toolbar -->
+                <div class="operation-guide-toolbar">
+                    <button class="btn btn-sm btn-outline-secondary" id="undo_btn" title="Undo (Ctrl+Z)">
+                        <i class="fa fa-undo"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="redo_btn" title="Redo (Ctrl+Y)">
+                        <i class="fa fa-redo"></i>
+                    </button>
+                    <div class="toolbar-separator"></div>
+                    <button class="btn btn-sm btn-outline-secondary" id="shortcuts_btn" title="Keyboard Shortcuts (Ctrl+/)">
+                        <i class="fa fa-keyboard-o"></i>
+                    </button>
+                </div>
+
+                <!-- Content Area -->
+                <div class="operation-guide-content">
+                    <div id="operation_blocks_wrapper" class="blocks-container"></div>
+                    
+                    <!-- Empty State -->
+                    <div id="empty_state" class="empty-state" style="display: none;">
+                        <div class="empty-state-content">
+                            <i class="fa fa-file-text-o"></i>
+                            <h4>No blocks yet</h4>
+                            <p>Start building your operation guide by adding your first block.</p>
+                            <button class="btn btn-primary btn-lg add-first-block">
+                                <i class="fa fa-plus"></i> Add First Block
+                            </button>
+                            <button class="btn btn-outline-primary btn-lg" onclick="window.operationGuide.showTemplateSelector()">
+                                <i class="fa fa-file-text"></i> Use Template
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Floating Action Button -->
+                <button id="floating_add_btn" 
+                        class="floating-add-btn" 
+                        title="Add Block (Ctrl+N)">
+                    <i class="fa fa-plus"></i>
+                </button>
+            </div>
+        `);
+
+        this.addStyles();
+        this.bindEvents();
+    }
+
+    bindEvents() {
+        // Add block button
+        document.getElementById('floating_add_btn').addEventListener('click', this.handleAddBlock);
+        document.querySelector('.add-first-block')?.addEventListener('click', this.handleAddBlock);
+        
+        // Search
+        document.getElementById('block_search').addEventListener('input', this.handleSearch);
+        
+        // Toolbar buttons
+        document.getElementById('save_all').addEventListener('click', () => this.saveAll());
+        document.getElementById('export_pdf').addEventListener('click', () => this.exportToPDF());
+        document.getElementById('toggle_page_breaks').addEventListener('click', () => this.togglePageBreaks());
+        document.getElementById('undo_btn').addEventListener('click', () => this.undo());
+        document.getElementById('redo_btn').addEventListener('click', () => this.redo());
+        document.getElementById('shortcuts_btn').addEventListener('click', () => this.showShortcutsHelp());
+    }
+
+    // Additional methods remain the same as in original code...
+    togglePageBreaks() {
+        this.showPageBreaks = !this.showPageBreaks;
+        const toggleBtn = document.getElementById('toggle_page_breaks');
+        const container = document.getElementById('operation_guide_ui');
+        
+        if (this.showPageBreaks) {
+            toggleBtn.innerHTML = '<i class="fa fa-file-text-o"></i> Hide Breaks';
+            toggleBtn.classList.add('btn-warning');
+            toggleBtn.classList.remove('btn-outline-secondary');
+            container.classList.add('pdf-preview-mode');
+            this.addPageBreakIndicators();
+            frappe.show_alert('📄 A4 page breaks are now visible', 'blue');
+        } else {
+            toggleBtn.innerHTML = '<i class="fa fa-file-text-o"></i> Page Breaks';
+            toggleBtn.classList.remove('btn-warning');
+            toggleBtn.classList.add('btn-outline-secondary');
+            container.classList.remove('pdf-preview-mode');
+            this.removePageBreakIndicators();
+            frappe.show_alert('📄 Page breaks hidden', 'blue');
+        }
+    }
+
+    addPageBreakIndicators() {
+        // Remove existing page breaks first
+        this.removePageBreakIndicators();
+        
+        const blocksContainer = document.getElementById('operation_blocks_wrapper');
+        if (!blocksContainer) return;
+        
+        const blocks = blocksContainer.querySelectorAll('.operation-block');
+        if (blocks.length === 0) return;
+        
+        let currentPageHeight = 100; // Start with some margin
+        let pageNumber = 1;
+        
+        blocks.forEach((block, index) => {
+            // Get block height (including margins)
+            const blockRect = block.getBoundingClientRect();
+            const blockHeight = blockRect.height + 40; // Add margin
+            
+            // Check if block would overflow current page
+            if (currentPageHeight + blockHeight > this.A4_HEIGHT && index > 0) {
+                // Insert page break before this block
+                const pageBreak = document.createElement('div');
+                pageBreak.className = 'page-break-line';
+                pageBreak.innerHTML = `<span style="position: absolute; top: -25px; right: 50px; background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">Page ${pageNumber + 1}</span>`;
+                
+                block.parentNode.insertBefore(pageBreak, block);
+                
+                // Reset height for new page
+                currentPageHeight = 100 + blockHeight;
+                pageNumber++;
+            } else {
+                currentPageHeight += blockHeight;
+            }
+        });
+        
+        // Add final page indicator
+        const finalIndicator = document.createElement('div');
+        finalIndicator.className = 'page-end-indicator';
+        finalIndicator.innerHTML = `
+            <div style="text-align: center; margin: 20px 0; padding: 15px; background: #e9ecef; border-radius: 8px; color: #495057;">
+                📄 End of Page ${pageNumber} • Total: ${pageNumber} page${pageNumber > 1 ? 's' : ''}
+            </div>
+        `;
+        blocksContainer.appendChild(finalIndicator);
+    }
+
+    removePageBreakIndicators() {
+        document.querySelectorAll('.page-break-line, .page-end-indicator').forEach(el => {
+            el.remove();
+        });
+    }
+
+    toggleEmptyState(show) {
+        const emptyState = document.getElementById('empty_state');
+        const blocksWrapper = document.getElementById('operation_blocks_wrapper');
+        
+        if (show && this.blocks.length === 0) {
+            emptyState.style.display = 'block';
+            blocksWrapper.style.display = 'none';
+        } else {
+            emptyState.style.display = 'none';
+            blocksWrapper.style.display = 'block';
+        }
+    }
+
+    async loadExistingBlocks() {
+        try {
+            const response = await frappe.call({
+                method: "frappe.client.get_list",
+                args: {
+                    doctype: "Operation Guide DATA",
+                    filters: { operation_guide_title: this.frm.doc.operation_guide_title },
+                    fields: ["*"],
+                    order_by: "modified desc"  // Most recently modified appears first
+                }
+            });
+            
+            if (response.message) {
+                this.blocks = response.message;
+                this.renderBlocks();
+                this.toggleEmptyState(this.blocks.length === 0);
+                console.log('Loaded blocks:', this.blocks.length);
+                
+                // Check for draft
+                if (this.blocks.length === 0) {
+                    this.loadDraft();
+                }
+            }
+        } catch (error) {
+            await this.handleError(error, 'loadExistingBlocks');
+        }
+    }
+
+    renderBlocks() {
+        const wrapper = document.getElementById('operation_blocks_wrapper');
+        if (!wrapper) return;
+
+        // Clean up previous block data references
+        this.cleanupBlockData();
+
+        let html = "";
+        
+        this.blocks.forEach((block, index) => {
+            const blockType = this.getBlockType(block);
+            
+            // Store block data in a more accessible way
+            const blockDataId = `block_data_${block.name}`;
+            window[blockDataId] = block;
+            
+            // Determine if copy button should be shown and what it should do
+            const isCopyable = !['Photo', 'Attachment'].includes(blockType);
+            const copyButton = isCopyable 
+                ? `<button onclick="window.copyOperationBlockContent('${block.name}')" 
+                          title="Copy Content">
+                       <i class="fa fa-copy"></i>
+                   </button>`
+                : `<button onclick="window.duplicateOperationBlock('${block.name}')" 
+                          title="Duplicate Block">
+                       <i class="fa fa-clone"></i>
+                   </button>`;
+            
+            html += `
+                <div class="operation-block fade-in" 
+                     data-block-id="${block.name}" 
+                     data-block-type="${blockType}"
+                     data-block-index="${index}"
+                     draggable="true"
+                     title="Drag to reorder">
+                    <div class="block-controls-overlay">
+                        ${copyButton}
+                        <button onclick="window.editOperationBlock('${block.name}')" 
+                                title="Edit">
+                            <i class="fa fa-edit"></i>
+                        </button>
+                        <button onclick="window.deleteOperationBlock('${block.name}', '${blockType}')" 
+                                title="Delete">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="block-content-direct">
+                        ${this.renderBlockContent(block, index)}
+                        ${block.description ? `<div class="block-description" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-left: 4px solid #dee2e6; font-style: italic; color: #6c757d; border-radius: 4px; font-size: 14px;">${this.sanitizeContent(block.description)}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        wrapper.innerHTML = html;
+        
+        // Initialize drag and drop after rendering
+        this.initializeDragAndDrop();
+        
+        // Add page breaks if enabled
+        if (this.showPageBreaks) {
+            this.addPageBreakIndicators();
+        }
+    }
+
+    cleanupBlockData() {
+        // Remove previous block data references from window object
+        for (let prop in window) {
+            if (prop.startsWith('block_data_')) {
+                delete window[prop];
+            }
+        }
+    }
+
+    getBlockType(block) {
+        const typeMap = {
+            header: "Header",
+            title: "Title", 
+            list: "List",
+            text: "Text",
+            js_code: "JS Code",
+            python_code: "Python Code",
+            photo: "Photo",
+            attachment: "Attachment",
+            link: "Link"
+        };
+        
+        for (const [key, type] of Object.entries(typeMap)) {
+            if (block[key]) return type;
+        }
+        return "Unknown";
+    }
+
+    handleAddBlock() {
+        this.showBlockTypePopup();
+    }
+
+    openBlockInputDialog(type, docname = null, currentValue = "") {
+        const fieldMap = {
+            "Header": { fieldtype: "Data", label: "Header Text", icon: "📑" },
+            "Title": { fieldtype: "Data", label: "Title Text", icon: "📌" },
+            "List": { fieldtype: "Text", label: "List Items (one per line)", icon: "📋" },
+            "Text": { fieldtype: "Small Text", label: "Paragraph Text", icon: "📝" },
+            "JS Code": { fieldtype: "Code", label: "JavaScript Code", options: "JS", icon: "🟨" },
+            "Python Code": { fieldtype: "Code", label: "Python Code", options: "Py", icon: "🐍" },
+            "Photo": { fieldtype: "Attach Image", label: "Upload Image", icon: "📷" },
+            "Attachment": { fieldtype: "Attach", label: "Upload File", icon: "📎" },
+            "Link": { fieldtype: "Data", label: "URL", icon: "🔗" }
+        };
+
+        const config = fieldMap[type];
+        const fieldKey = type.toLowerCase().replace(" ", "_");
+
+        const fields = [
+            {
+                label: config.label,
+                fieldname: fieldKey,
+                fieldtype: config.fieldtype,
+                options: config.options || "",
+                reqd: 1,
+                default: currentValue
+            }
+        ];
+
+        // Add description field for all blocks
+        if (type !== "Photo" && type !== "Attachment") {
+            // Get current description if editing
+            let currentDescription = "";
+            if (docname) {
+                const blockDataId = `block_data_${docname}`;
+                const blockData = window[blockDataId];
+                if (blockData && blockData.description) {
+                    currentDescription = blockData.description;
+                }
+            }
+            
+            fields.push({
+                label: "Description (Optional)",
+                fieldname: "description",
+                fieldtype: "Small Text",
+                description: "Brief description of this block",
+                default: currentDescription
+            });
+        }
+
+        frappe.prompt(fields, async (values) => {
+            try {
+                values.operation_guide_title = this.frm.doc.operation_guide_title;
+                
+                if (docname) {
+                    // Track edit for undo
+                    const oldValue = currentValue;
+                    const newValue = values[fieldKey];
+                    
+                    await this.updateBlock(docname, fieldKey, values);
+                    
+                    this.pushToUndoStack({
+                        type: 'edit',
+                        blockId: docname,
+                        fieldKey: fieldKey,
+                        oldValue: oldValue,
+                        newValue: newValue
+                    });
+                } else {
+                    await this.createBlock(fieldKey, values, type);
+                }
+                
+                frappe.show_alert(`${config.icon} "${type}" block ${docname ? 'updated' : 'added'} successfully!`, 'green');
+                this.loadExistingBlocks();
+            } catch (error) {
+                await this.handleError(error, 'openBlockInputDialog');
+            }
+        }, `${config.icon} ${docname ? "Edit" : "Add"} ${type}`);
+    }
+
+    async updateBlock(docname, fieldKey, values) {
+        return new Promise((resolve, reject) => {
+            frappe.call({
+                method: "frappe.client.set_value",
+                args: {
+                    doctype: "Operation Guide DATA",
+                    name: docname,
+                    fieldname: {
+                        [fieldKey]: values[fieldKey],
+                        description: values.description || ''
+                    }
+                },
+                callback: (r) => {
+                    if (r.exc) {
+                        reject(r.exc);
+                    } else {
+                        resolve(r.message);
+                    }
+                }
+            });
+        });
+    }
+
+    async deleteBlock(docname, blockType, trackUndo = true) {
+        const confirmDelete = await this.showConfirmDialog(
+            `Delete ${blockType} Block`,
+            `Are you sure you want to delete this ${blockType.toLowerCase()} block? This action cannot be undone.`
+        );
+        
+        if (!confirmDelete) return;
+
+        try {
+            // Get block data for undo
+            const blockData = this.blocks.find(b => b.name === docname);
+            
+            await new Promise((resolve, reject) => {
+                frappe.call({
+                    method: "frappe.client.delete",
+                    args: {
+                        doctype: "Operation Guide DATA",
+                        name: docname
+                    },
+                    callback: (r) => {
+                        if (r.exc) {
+                            reject(r.exc);
+                        } else {
+                            resolve(r.message);
+                        }
+                    }
+                });
+            });
+            
+            if (trackUndo && blockData) {
+                this.pushToUndoStack({
+                    type: 'delete',
+                    blockId: docname,
+                    blockType: blockType,
+                    blockData: blockData
+                });
+            }
+            
+            frappe.show_alert('Block deleted successfully', 'green');
+            this.loadExistingBlocks();
+        } catch (error) {
+            await this.handleError(error, 'deleteBlock');
+        }
+    }
+
+    async restoreBlock(blockData) {
+        try {
+            const newBlock = { ...blockData };
+            delete newBlock.name;
+            delete newBlock.creation;
+            delete newBlock.modified;
+            
+            await new Promise((resolve, reject) => {
+                frappe.call({
+                    method: "frappe.client.insert",
+                    args: { 
+                        doc: { 
+                            ...newBlock, 
+                            doctype: "Operation Guide DATA" 
+                        } 
+                    },
+                    callback: (r) => r.exc ? reject(r.exc) : resolve(r.message)
+                });
+            });
+            
+            await this.loadExistingBlocks();
+        } catch (error) {
+            await this.handleError(error, 'restoreBlock');
+        }
+    }
+
+    showConfirmDialog(title, message) {
+        return new Promise((resolve) => {
+            const dialog = new frappe.ui.Dialog({
+                title: title,
+                fields: [
+                    {
+                        fieldtype: "HTML",
+                        options: `<p>${message}</p>`
+                    }
+                ],
+                primary_action_label: "Delete",
+                primary_action: () => {
+                    dialog.hide();
+                    resolve(true);
+                },
+                secondary_action_label: "Cancel",
+                secondary_action: () => {
+                    dialog.hide();
+                    resolve(false);
+                }
+            });
+            dialog.show();
+        });
+    }
+
+    editBlock(docname, blockData) {
+        const typeMap = {
+            "header": "Header",
+            "title": "Title",
+            "list": "List", 
+            "text": "Text",
+            "js_code": "JS Code",
+            "python_code": "Python Code",
+            "photo": "Photo",
+            "attachment": "Attachment",
+            "link": "Link"
+        };
+        
+        for (const [key, type] of Object.entries(typeMap)) {
+            if (blockData[key] && blockData[key].trim()) {
+                this.openBlockInputDialog(type, docname, blockData[key]);
+                return;
+            }
+        }
+        
+        // Fallback - if no content found, show error
+        frappe.show_alert('No content found in this block', 'orange');
+    }
+
+    async duplicateBlock(docname) {
+        try {
+            const blockData = this.blocks.find(b => b.name === docname);
+            if (!blockData) return;
+            
+            const newBlock = { ...blockData };
+            delete newBlock.name;
+            delete newBlock.creation;
+            delete newBlock.modified;
+            
+            await new Promise((resolve, reject) => {
+                frappe.call({
+                    method: "frappe.client.insert",
+                    args: { doc: { ...newBlock, doctype: "Operation Guide DATA" } },
+                    callback: (r) => r.exc ? reject(r.exc) : resolve(r.message)
+                });
+            });
+            
+            frappe.show_alert('Block duplicated successfully', 'green');
+            this.loadExistingBlocks();
+        } catch (error) {
+            await this.handleError(error, 'duplicateBlock');
+        }
+    }
+
+    async reorderBlocksByDrop(draggedId, targetId) {
+        console.log('=== REORDERING BLOCKS ===');
+        console.log('Moving:', draggedId, 'to position of:', targetId);
+        
+        try {
+            // Track for undo
+            this.pushToUndoStack({
+                type: 'reorder',
+                fromId: draggedId,
+                toId: targetId
+            });
+            
+            // Simple approach: update the dragged block timestamp to be newer
+            const now = new Date();
+            const newTimestamp = new Date(now.getTime() + Math.random() * 1000).toISOString();
+            
+            console.log('Updating timestamp for block:', draggedId);
+            
+            // Trigger an update to change the modified timestamp
+            await new Promise((resolve, reject) => {
+                frappe.call({
+                    method: "frappe.client.set_value",
+                    args: {
+                        doctype: "Operation Guide DATA",
+                        name: draggedId,
+                        fieldname: "description",
+                        value: (window[`block_data_${draggedId}`]?.description || '') + ' ' // Add space to trigger update
+                    },
+                    callback: (r) => {
+                        if (r.exc) {
+                            console.error('Error updating block:', r.exc);
+                            reject(r.exc);
+                        } else {
+                            console.log('✅ Block updated successfully');
+                            resolve(r.message);
+                        }
+                    }
+                });
+            });
+            
+            // Wait a moment then trim the description back
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            await new Promise((resolve, reject) => {
+                frappe.call({
+                    method: "frappe.client.set_value",
+                    args: {
+                        doctype: "Operation Guide DATA",
+                        name: draggedId,
+                        fieldname: "description",
+                        value: (window[`block_data_${draggedId}`]?.description || '').trim()
+                    },
+                    callback: (r) => {
+                        if (r.exc) {
+                            console.error('Error cleaning description:', r.exc);
+                            reject(r.exc);
+                        } else {
+                            console.log('✅ Description cleaned');
+                            resolve(r.message);
+                        }
+                    }
+                });
+            });
+            
+            console.log('✅ Reordering complete, reloading blocks...');
+            
+            // Reload blocks after changes
+            setTimeout(() => {
+                this.loadExistingBlocks();
+            }, 300);
+            
+        } catch (error) {
+            await this.handleError(error, 'reorderBlocksByDrop');
+        }
+    }
+}
+
+// Main Frappe form handler
+frappe.ui.form.on('Operation Guide', {
+    refresh(frm) {
+        // Initialize the enhanced operation guide manager
+        if (window.operationGuide) {
+            window.operationGuide.destroy();
+        }
+        window.operationGuide = new OperationGuideManager(frm);
+    }
+});
+
+// Global function for backward compatibility
+function render_operation_ui(frm) {
+    if (window.operationGuide) {
+        window.operationGuide.destroy();
+    }
+    window.operationGuide = new OperationGuideManager(frm);
+}
+
+// Enhanced Global Helper Functions
+window.copyCodeBlock = async function(blockId) {
+    const codeBlock = document.getElementById(blockId);
+    if (!codeBlock) return;
+    
+    const fullCode = atob(codeBlock.dataset.fullCode || '');
+    const code = fullCode || codeBlock.querySelector('.code-content').textContent;
+    
+    try {
+        await navigator.clipboard.writeText(code);
+        frappe.show_alert('📋 Code copied to clipboard!', 'green');
+    } catch (err) {
+        console.error('Failed to copy code:', err);
+        frappe.show_alert('Failed to copy code', 'red');
+    }
+};
+
+window.toggleCodeExpansion = function(blockId) {
+    const codeBlock = document.getElementById(blockId);
+    if (!codeBlock) return;
+    
+    const isExpanded = codeBlock.dataset.expanded === 'true';
+    const fullCode = atob(codeBlock.dataset.fullCode || '');
+    
+    if (!fullCode) return;
+    
+    const lines = fullCode.split('\n');
+    const tbody = codeBlock.querySelector('.code-table tbody');
+    
+    if (!isExpanded) {
+        // Expand
+        let html = '';
+        lines.forEach((line, i) => {
+            html += `
+                <tr>
+                    <td class="line-number">${i + 1}</td>
+                    <td class="line-content"><pre>${window.operationGuide.sanitizeContent(line)}</pre></td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+        codeBlock.dataset.expanded = 'true';
+        codeBlock.querySelector('.fa-expand').className = 'fa fa-compress';
+    } else {
+        // Collapse
+        window.operationGuide.renderEnhancedCodeBlock(fullCode, codeBlock.dataset.language, blockId);
+    }
+};
+
+window.rotatePhoto = function(photoId, degrees) {
+    const photo = document.getElementById(photoId);
+    if (!photo) return;
+    
+    const currentRotation = parseInt(photo.dataset.rotation || '0');
+    const newRotation = currentRotation + degrees;
+    
+    photo.style.transform = `rotate(${newRotation}deg) scale(${photo.dataset.currentScale || 1})`;
+    photo.dataset.rotation = newRotation;
+    
+    frappe.show_alert(`🔄 Rotated ${degrees > 0 ? 'right' : 'left'}`, 'blue');
+};
+
+window.resetPhoto = function(photoId) {
+    const photo = document.getElementById(photoId);
+    const zoomInfo = document.getElementById(`${photoId}_zoom`);
+    
+    if (photo) {
+        photo.style.transform = 'rotate(0deg) scale(1)';
+        photo.dataset.rotation = '0';
+        photo.dataset.currentScale = '1';
+        if (zoomInfo) zoomInfo.textContent = '100%';
+        
+        frappe.show_alert('↺ Photo reset', 'blue');
+    }
+};
+
+window.downloadPhoto = async function(photoId) {
+    const photo = document.getElementById(photoId);
+    if (!photo) return;
+    
+    try {
+        const response = await fetch(photo.src);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `operation-guide-photo-${photoId}.${blob.type.split('/')[1]}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        frappe.show_alert('📥 Photo download started', 'green');
+    } catch (error) {
+        console.error('Download failed:', error);
+        frappe.show_alert('Failed to download photo', 'red');
+    }
+};
+
+window.onPhotoLoad = function(photoId) {
+    const photo = document.getElementById(photoId);
+    const dimensionsEl = document.getElementById(`${photoId}_dimensions`);
+    const filesizeEl = document.getElementById(`${photoId}_filesize`);
+    const loadingEl = photo.parentElement.querySelector('.photo-loading');
+    
+    if (photo) {
+        // Hide loading indicator
+        if (loadingEl) loadingEl.style.display = 'none';
+        
+        // Add loaded class for animation
+        photo.classList.add('loaded');
+        
+        // Update dimensions
+        if (dimensionsEl) {
+            dimensionsEl.textContent = `${photo.naturalWidth} × ${photo.naturalHeight}px`;
+        }
+        
+        // Estimate file size (rough estimate)
+        if (filesizeEl) {
+            const estimatedSize = (photo.naturalWidth * photo.naturalHeight * 3) / 1024 / 1024;
+            filesizeEl.textContent = `~${estimatedSize.toFixed(1)}MB`;
+        }
+    }
+};
+
+// Keep existing global helper functions
+window.toggleOperationCode = function(id, language) {
+    if (window.operationGuide) {
+        window.operationGuide.toggleCode(id, language);
+    }
+};
+
+window.zoomPhotoIn = function(photoId) {
+    const photo = document.getElementById(photoId);
+    const sizeInfo = document.getElementById(`${photoId}_zoom`);
+    
+    if (photo && window.operationGuide) {
+        let currentScale = parseFloat(photo.dataset.currentScale) || 1;
+        const newScale = Math.min(5, currentScale + 0.1); // Max 500%
+        
+        const rotation = photo.dataset.rotation || 0;
+        photo.style.transform = `rotate(${rotation}deg) scale(${newScale})`;
+        photo.dataset.currentScale = newScale;
+        
+        if (sizeInfo) {
+            sizeInfo.textContent = Math.round(newScale * 100) + '%';
+        }
+        
+        frappe.show_alert(`🔍 Zoomed to ${Math.round(newScale * 100)}%`, 'blue');
+    }
+};
+
+window.zoomPhotoOut = function(photoId) {
+    const photo = document.getElementById(photoId);
+    const sizeInfo = document.getElementById(`${photoId}_zoom`);
+    
+    if (photo && window.operationGuide) {
+        let currentScale = parseFloat(photo.dataset.currentScale) || 1;
+        const newScale = Math.max(0.1, currentScale - 0.1); // Min 10%
+        
+        const rotation = photo.dataset.rotation || 0;
+        photo.style.transform = `rotate(${rotation}deg) scale(${newScale})`;
+        photo.dataset.currentScale = newScale;
+        
+        if (sizeInfo) {
+            sizeInfo.textContent = Math.round(newScale * 100) + '%';
+        }
+        
+        frappe.show_alert(`🔍 Zoomed to ${Math.round(newScale * 100)}%`, 'blue');
+    }
+};
+
+window.copyOperationBlockContent = function(docname) {
+    if (window.operationGuide) {
+        const blockDataId = `block_data_${docname}`;
+        const blockData = window[blockDataId];
+        
+        if (blockData) {
+            let contentToCopy = '';
+            
+            // Extract content based on block type
+            if (blockData.header) {
+                contentToCopy = blockData.header;
+            } else if (blockData.title) {
+                contentToCopy = blockData.title;
+            } else if (blockData.list) {
+                contentToCopy = blockData.list;
+            } else if (blockData.text) {
+                contentToCopy = blockData.text;
+            } else if (blockData.js_code) {
+                contentToCopy = blockData.js_code;
+            } else if (blockData.python_code) {
+                contentToCopy = blockData.python_code;
+            } else if (blockData.link) {
+                contentToCopy = blockData.link;
+            } else {
+                frappe.show_alert('No copyable content found in this block', 'orange');
+                return;
+            }
+            
+            // Copy to clipboard
+            if (navigator.clipboard && window.isSecureContext) {
+                // Use modern clipboard API
+                navigator.clipboard.writeText(contentToCopy).then(() => {
+                    frappe.show_alert('📋 Content copied to clipboard!', 'green');
+                }).catch(err => {
+                    console.error('Failed to copy content:', err);
+                    // Fallback to old method
+                    window.copyOperationBlockContentFallback(contentToCopy);
+                });
+            } else {
+                // Fallback for older browsers or non-secure contexts
+                window.copyOperationBlockContentFallback(contentToCopy);
+            }
+        } else {
+            console.error('Block data not found for:', blockDataId);
+            frappe.show_alert('Block data not found', 'red');
+        }
+    } else {
+        console.error('operationGuide not found in window');
+    }
+};
+
+window.copyOperationBlockContentFallback = function(text) {
+    // Create a temporary textarea element
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-999999px';
+    textarea.style.top = '-999999px';
+    document.body.appendChild(textarea);
+    
+    try {
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        frappe.show_alert('📋 Content copied to clipboard!', 'green');
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+        frappe.show_alert('Failed to copy content to clipboard', 'red');
+    } finally {
+        document.body.removeChild(textarea);
+    }
+};
+
+window.editOperationBlock = function(docname) {
+    if (window.operationGuide) {
+        const blockDataId = `block_data_${docname}`;
+        const blockData = window[blockDataId];
+        if (blockData) {
+            window.operationGuide.editBlock(docname, blockData);
+        } else {
+            frappe.show_alert('Block data not found', 'red');
+        }
+    }
+};
+
+window.duplicateOperationBlock = function(docname) {
+    if (window.operationGuide) {
+        window.operationGuide.duplicateBlock(docname);
+    }
+};
+
+window.deleteOperationBlock = function(docname, blockType) {
+    if (window.operationGuide) {
+        window.operationGuide.deleteBlock(docname, blockType);
+    }
+};

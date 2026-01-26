@@ -1,0 +1,37 @@
+{
+ "actions": [],
+ "autoname": "format:INCR-{#############################}",
+ "creation": "2025-09-18 12:45:55.923691",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "international_certification"
+ ],
+ "fields": [
+  {
+   "fieldname": "international_certification",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "International Certification ",
+   "options": "\nPMP (Project Management Professional) \u2013 PMI\nCAPM (Certified Associate in Project Management) \u2013 PMI\nPgMP (Program Management Professional) \u2013 PMI\nPMI-ACP (Agile Certified Practitioner) \u2013 PMI\nPRINCE2 Foundation / Practitioner \u2013 AXELOS\nPMI-RMP (Risk Management Professional) \u2013 PMI\nPMI-SP (Scheduling Professional) \u2013 PMI\nLean Six Sigma (Green Belt, Black Belt, Master Black Belt)\nIPMA Certification (Level A\u2013D) \u2013 International Project Management Association\nPE (Professional Engineer) \u2013 USA/Canada\nChartered Engineer (CEng) \u2013 UK (Engineering Council)\nFE (Fundamentals of Engineering) \u2013 USA\nCertified Construction Manager (CCM) \u2013 CMAA\nRICS Chartered Surveyor (MRICS/FRICS) \u2013 Royal Institution of Chartered Surveyors\nFIDIC Contract Management Certification\nCertified Cost Engineer (CCE) \u2013 AACE\nCertified Quantity Surveyor (CQS)\nLEED (Leadership in Energy and Environmental Design) \u2013 USGBC\nPMP-Construction Extension\nCISSP (Certified Information Systems Security Professional) \u2013 ISC\u00b2\nCISM (Certified Information Security Manager) \u2013 ISACA\nCISA (Certified Information Systems Auditor) \u2013 ISACA\nCRISC (Certified in Risk and Information Systems Control) \u2013 ISACA\nCEH (Certified Ethical Hacker) \u2013 EC-Council\nCompTIA Certifications (Security+, Network+, A+, Cloud+)\nAWS Certified Solutions Architect / DevOps / Security\nMicrosoft Certified (Azure, Power Platform, Dynamics)\nGoogle Cloud Professional Certifications\nCCNA / CCNP / CCIE \u2013 Cisco\nITIL (Information Technology Infrastructure Library) \u2013 AXELOS\nTOGAF (Enterprise Architecture)\nCPA (Certified Public Accountant) \u2013 USA\nACCA (Association of Chartered Certified Accountants) \u2013 UK\nCFA (Chartered Financial Analyst) \u2013 CFA Institute\nCMA (Certified Management Accountant) \u2013 IMA\nCIA (Certified Internal Auditor) \u2013 IIA\nFRM (Financial Risk Manager) \u2013 GARP\nCAIA (Chartered Alternative Investment Analyst)\nNEBOSH IGC (International General Certificate) \u2013 NEBOSH\nIOSH Managing Safely \u2013 IOSH\nOSHA Certifications \u2013 USA\nISO 45001 Lead Auditor \u2013 Occupational H&S\nCertified Safety Professional (CSP) \u2013 BCSP\nCertified Industrial Hygienist (CIH)\nISO 9001 Lead Auditor / Lead Implementer\nISO 14001 Lead Auditor (Environmental Management)\nISO 45001 Lead Auditor (H&S Management)\nISO 27001 Lead Auditor (Information Security)\nISO 50001 (Energy Management)\nLean Six Sigma Green/Black Belt\nSHRM-CP / SHRM-SCP \u2013 SHRM\nPHR / SPHR \u2013 HRCI\nCIPD Certification \u2013 UK\nCSCP (Certified Supply Chain Professional) \u2013 APICS\nCPIM (Certified in Production and Inventory Management) \u2013 APICS\nCILT (Chartered Institute of Logistics and Transport)\nCLTD (Certified in Logistics, Transportation and Distribution)",
+   "reqd": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-09-18 12:59:39.982970",
+ "modified_by": "Administrator",
+ "module": "Job Application Tracking System",
+ "name": "International Certification",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

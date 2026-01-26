@@ -1,0 +1,107 @@
+{
+ "actions": [],
+ "creation": "2025-08-25 09:23:32.005131",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "target_doctype",
+  "column_break_hyhi",
+  "filename",
+  "section_break_dpvy",
+  "code_editor_html",
+  "section_break_pnfl",
+  "file_content",
+  "last_op_log_section",
+  "last_op_log"
+ ],
+ "fields": [
+  {
+   "fieldname": "target_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Target Doctype",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "filename",
+   "fieldtype": "Select",
+   "label": "File Type"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_pnfl",
+   "fieldtype": "Section Break",
+   "hidden": 1,
+   "label": "Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "file_content",
+   "fieldtype": "Code",
+   "label": "Code",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "last_op_log_section",
+   "fieldtype": "Section Break",
+   "hidden": 1,
+   "label": "Last Op Log"
+  },
+  {
+   "fieldname": "last_op_log",
+   "fieldtype": "Small Text",
+   "label": "Last Op Log",
+   "read_only": 1
+  },
+  {
+   "fieldname": "code_editor_html",
+   "fieldtype": "HTML",
+   "label": "Code Editor HTML"
+  },
+  {
+   "fieldname": "section_break_dpvy",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_hyhi",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "hide_toolbar": 1,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-10-26 10:19:15.022496",
+ "modified_by": "Administrator",
+ "module": "Core",
+ "name": "Server Access",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

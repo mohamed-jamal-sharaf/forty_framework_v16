@@ -1,0 +1,544 @@
+let __xterm_loaded = false;
+let __term, __fitAddon;
+let __sid = null;
+
+frappe.ui.form.on('Server Access', {
+  refresh(frm) {
+    // Terminal buttons
+    frm.add_custom_button(__('Open Terminal'), () => openTerminal(frm), 'Terminal');
+    frm.add_custom_button(__('Disconnect'), () => disconnectTerminal(frm), 'Terminal');
+    frm.add_custom_button(__('Test Connection'), () => testConnection(frm), 'Terminal');
+
+    // File editor buttons
+    frm.add_custom_button(__('Load Files'), () => loadFiles(frm), 'File Tools');
+    frm.add_custom_button(__('Save File'), () => saveFile(frm), 'File Tools');
+
+    ensureTerminalContainer(frm);
+    
+    // Add help text
+    if (frm.fields_dict.ssh_password) {
+      frm.fields_dict.ssh_password.set_description(
+        'Enter your SSH password. Special characters are supported.'
+      );
+    }
+    
+    // Add connection status indicator
+    updateConnectionStatus(frm, 'disconnected');
+  },
+
+  filename(frm) {
+    if (!frm.doc.filename) return;
+    loadFileContent(frm);
+  },
+  
+  ssh_auth_type(frm) {
+    // Show/hide relevant fields based on auth type
+    const isPassword = frm.doc.ssh_auth_type === 'Password';
+    frm.toggle_display('ssh_password', isPassword);
+    frm.toggle_display('ssh_private_key', !isPassword);
+    frm.toggle_display('ssh_key_passphrase', !isPassword);
+  }
+});
+
+// ---------- Terminal UI ----------
+
+function ensureTerminalContainer(frm) {
+  const wrapper = frm.get_field('terminal_html');
+  if (!wrapper || !wrapper.$wrapper) return;
+  wrapper.$wrapper.empty().css({padding: 0});
+  wrapper.$wrapper.append(`
+    <div class="terminal-container">
+      <div class="terminal-header" style="padding: 10px; background: var(--bg-color); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span id="connection-status" class="indicator-pill"></span>
+          <span id="connection-info" style="margin-left: 10px; font-size: 12px; color: var(--text-muted);"></span>
+        </div>
+        <div>
+          <button class="btn btn-xs btn-default" onclick="clearTerminal()">Clear</button>
+        </div>
+      </div>
+      <div id="sa-term" style="height:420px; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 8px 8px; overflow: hidden; background: #000;"></div>
+    </div>
+  `);
+}
+
+function updateConnectionStatus(frm, status, info = '') {
+  const statusEl = document.getElementById('connection-status');
+  const infoEl = document.getElementById('connection-info');
+  
+  if (statusEl) {
+    statusEl.className = 'indicator-pill';
+    switch(status) {
+      case 'connected':
+        statusEl.classList.add('green');
+        statusEl.textContent = 'Connected';
+        break;
+      case 'connecting':
+        statusEl.classList.add('yellow');
+        statusEl.textContent = 'Connecting...';
+        break;
+      case 'disconnected':
+        statusEl.classList.add('red');
+        statusEl.textContent = 'Disconnected';
+        break;
+      case 'error':
+        statusEl.classList.add('red');
+        statusEl.textContent = 'Error';
+        break;
+    }
+  }
+  
+  if (infoEl && info) {
+    infoEl.textContent = info;
+  }
+}
+
+function clearTerminal() {
+  if (__term) {
+    __term.clear();
+  }
+}
+
+function loadXtermAssets() {
+  return new Promise((resolve, reject) => {
+    if (__xterm_loaded) return resolve();
+    
+    // Add CSS
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/xterm@5.3.0/css/xterm.css';
+    link.onerror = () => reject(new Error('Failed to load xterm CSS'));
+    document.head.appendChild(link);
+
+    // Add main xterm script
+    const s1 = document.createElement('script');
+    s1.src = 'https://unpkg.com/xterm@5.3.0/lib/xterm.js';
+    s1.onerror = () => reject(new Error('Failed to load xterm.js'));
+    s1.onload = () => {
+      // Add fit addon
+      const s2 = document.createElement('script');
+      s2.src = 'https://unpkg.com/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js';
+      s2.onerror = () => reject(new Error('Failed to load xterm-addon-fit.js'));
+      s2.onload = () => { 
+        __xterm_loaded = true; 
+        resolve(); 
+      };
+      document.body.appendChild(s2);
+    };
+    document.body.appendChild(s1);
+  });
+}
+
+async function openTerminal(frm) {
+  // Validation
+  if (!frm.doc.ssh_host || !frm.doc.ssh_user) {
+    frappe.msgprint(__('Please enter SSH Host and User'));
+    return;
+  }
+  
+  // Check auth requirements
+  if (frm.doc.ssh_auth_type === 'Password' && !frm.doc.ssh_password) {
+    frappe.msgprint(__('Please enter SSH Password'));
+    return;
+  }
+  
+  if (frm.doc.ssh_auth_type === 'Private Key' && !frm.doc.ssh_private_key) {
+    frappe.msgprint(__('Please enter SSH Private Key'));
+    return;
+  }
+  
+  updateConnectionStatus(frm, 'connecting', `Connecting to ${frm.doc.ssh_host}...`);
+  
+  try {
+    await loadXtermAssets();
+  } catch (error) {
+    frappe.msgprint({
+      title: __('Failed to load terminal components'),
+      message: error.message,
+      indicator: 'red'
+    });
+    updateConnectionStatus(frm, 'error');
+    return;
+  }
+  
+  const el = document.getElementById('sa-term');
+  if (!el) { 
+    frappe.msgprint(__('Terminal container not found.')); 
+    return; 
+  }
+
+  // Dispose existing terminal
+  if (__term) { 
+    try { 
+      __term.dispose(); 
+    } catch(e) {
+      console.error('Error disposing terminal:', e);
+    } 
+  }
+  
+  // Create new terminal
+  __fitAddon = new window.FitAddon.FitAddon();
+  __term = new window.Terminal({
+    convertEol: true, 
+    cursorBlink: true, 
+    fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace', 
+    fontSize: 13,
+    theme: {
+      background: '#1e1e1e',
+      foreground: '#d4d4d4',
+      cursor: '#f0f0f0',
+      black: '#000000',
+      red: '#cd3131',
+      green: '#0dbc79',
+      yellow: '#e5e510',
+      blue: '#2472c8',
+      magenta: '#bc3fbc',
+      cyan: '#11a8cd',
+      white: '#e5e5e5',
+      brightBlack: '#666666',
+      brightRed: '#f14c4c',
+      brightGreen: '#23d18b',
+      brightYellow: '#f5f543',
+      brightBlue: '#3b8eea',
+      brightMagenta: '#d670d6',
+      brightCyan: '#29b8db',
+      brightWhite: '#e5e5e5'
+    }
+  });
+  
+  __term.loadAddon(__fitAddon);
+  __term.open(el);
+  __fitAddon.fit();
+  __term.write('🔌 Connecting to SSH server...\r\n');
+
+  // Get password directly from input without trim
+  let password = '';
+  const pwdField = frm.fields_dict.ssh_password;
+  if (frm.doc.ssh_auth_type === 'Password') {
+    if (pwdField && pwdField.$input) {
+      password = pwdField.$input.val() || '';
+    } else {
+      password = frm.doc.ssh_password || '';
+    }
+    
+    // Debug info (remove in production)
+    console.debug('SSH Connection Debug:', {
+      host: frm.doc.ssh_host,
+      user: frm.doc.ssh_user,
+      authType: frm.doc.ssh_auth_type,
+      passwordLength: password.length,
+      passwordFirstChar: password.charAt(0),
+      passwordLastChar: password.charAt(password.length - 1)
+    });
+  }
+
+  // Setup realtime listener
+  frappe.realtime.off('server_access_terminal'); // Remove old listeners
+  frappe.realtime.on('server_access_terminal', (msg) => {
+    if (!msg || msg.sid !== __sid) return;
+    if (msg.data) {
+      __term.write(msg.data);
+    }
+  });
+
+  // Make SSH connection
+  frappe.call({
+    method: "frappe.core.doctype.server_access.server_access.terminal_start",
+    freeze: false, // Don't freeze UI so user can see connection progress
+    freeze_message: __('Establishing SSH connection...'),
+    args: {
+      host: (frm.doc.ssh_host || "").trim(),
+      port: frm.doc.ssh_port || 22,
+      username: (frm.doc.ssh_user || "").trim(),
+      auth_type: frm.doc.ssh_auth_type || "Password",
+      password: password,  // Raw password without trim
+      private_key: frm.doc.ssh_private_key || "",
+      passphrase: frm.doc.ssh_key_passphrase || "",
+      rows: 24, 
+      cols: 80
+    },
+    callback: (r) => {
+      if (r.message) {
+        __sid = r.message;
+        __term.clear();
+        __term.focus();
+        
+        updateConnectionStatus(frm, 'connected', `${frm.doc.ssh_user}@${frm.doc.ssh_host}`);
+
+        // Setup terminal data handler
+        __term.onData((data) => {
+          if (!__sid) return;
+          frappe.call({
+            method: "frappe.core.doctype.server_access.server_access.terminal_send",
+            args: { sid: __sid, data },
+            error: (err) => {
+              console.error('Error sending data:', err);
+              __term.write('\r\n⚠️  Error sending data to server\r\n');
+            }
+          });
+        });
+
+        // Handle window resize
+        const resizeHandler = () => {
+          if (!__term || !__fitAddon || !__sid) return;
+          try {
+            __fitAddon.fit();
+            frappe.call({
+              method: "frappe.core.doctype.server_access.server_access.terminal_resize",
+              args: { 
+                sid: __sid, 
+                cols: __term.cols, 
+                rows: __term.rows 
+              }
+            });
+          } catch(e) {
+            console.error('Resize error:', e);
+          }
+        };
+        
+        window.removeEventListener('resize', resizeHandler); // Remove old handler
+        window.addEventListener('resize', resizeHandler);
+
+        // Initial resize
+        setTimeout(() => {
+          resizeHandler();
+        }, 100);
+        
+        // Show success message
+        frappe.show_alert({
+          message: __('SSH connection established'),
+          indicator: 'green'
+        }, 3);
+      } else {
+        updateConnectionStatus(frm, 'error', 'Connection failed');
+        __term && __term.write('\r\n❌ Connection failed - no session ID received\r\n');
+      }
+    },
+    error: (err) => {
+      updateConnectionStatus(frm, 'error', 'Connection failed');
+      
+      let errorMsg = err.message || 'Unknown error';
+      if (err.exc && err.exc.includes('SSH')) {
+        errorMsg = err.exc;
+      }
+      
+      __term && __term.write(`\r\n❌ ${errorMsg}\r\n`);
+      
+      frappe.msgprint({
+        title: __('SSH Connection Failed'),
+        message: errorMsg,
+        indicator: 'red'
+      });
+      
+      // Show link to error log
+      if (errorMsg.includes('Check the Error Log')) {
+        __term && __term.write('\r\n📋 Check Error Log for details: Admin Tools → Error Log\r\n');
+      }
+    }
+  });
+}
+
+function disconnectTerminal(frm) {
+  if (!__sid) {
+    frappe.show_alert({
+      message: __('No active connection'),
+      indicator: 'yellow'
+    }, 3);
+    return;
+  }
+  
+  frappe.call({
+    method: "frappe.core.doctype.server_access.server_access.terminal_close",
+    args: { sid: __sid },
+    callback: () => {
+      __sid = null;
+      if (__term) { 
+        __term.write('\r\n🔌 [Disconnected]\r\n'); 
+      }
+      updateConnectionStatus(frm, 'disconnected');
+      frappe.show_alert({
+        message: __('SSH connection closed'),
+        indicator: 'orange'
+      }, 3);
+    }
+  });
+}
+
+async function testConnection(frm) {
+  if (!frm.doc.ssh_host || !frm.doc.ssh_user) {
+    frappe.msgprint(__('Please enter SSH Host and User'));
+    return;
+  }
+  
+  // Get password
+  let password = '';
+  if (frm.doc.ssh_auth_type === 'Password') {
+    const pwdField = frm.fields_dict.ssh_password;
+    if (pwdField && pwdField.$input) {
+      password = pwdField.$input.val() || '';
+    } else {
+      password = frm.doc.ssh_password || '';
+    }
+  }
+  
+  frappe.call({
+    method: "frappe.core.doctype.server_access.server_access.test_ssh_connection",
+    freeze: true,
+    freeze_message: __('Testing SSH connection...'),
+    args: {
+      host: (frm.doc.ssh_host || "").trim(),
+      port: frm.doc.ssh_port || 22,
+      username: (frm.doc.ssh_user || "").trim(),
+      auth_type: frm.doc.ssh_auth_type || "Password",
+      password: password,
+      private_key: frm.doc.ssh_private_key || "",
+      passphrase: frm.doc.ssh_key_passphrase || ""
+    },
+    callback: (r) => {
+      const result = r.message;
+      
+      if (result.success) {
+        frappe.msgprint({
+          title: __('Connection Test Successful'),
+          message: `
+            <p><strong>✅ ${result.message || 'Connection successful'}</strong></p>
+            <p><strong>Server Info:</strong></p>
+            <ul>
+              <li>Version: ${result.server_info.remote_version || 'Unknown'}</li>
+              <li>Available Auth Methods: ${result.auth_methods.join(', ') || 'Unknown'}</li>
+            </ul>
+          `,
+          indicator: 'green'
+        });
+      } else {
+        frappe.msgprint({
+          title: __('Connection Test Failed'),
+          message: `
+            <p><strong>❌ ${result.error}</strong></p>
+            ${result.auth_methods.length > 0 ? 
+              `<p><strong>Available Auth Methods:</strong> ${result.auth_methods.join(', ')}</p>` : ''}
+            ${result.server_info.remote_version ? 
+              `<p><strong>Server Version:</strong> ${result.server_info.remote_version}</p>` : ''}
+            <hr>
+            <p><strong>Troubleshooting Tips:</strong></p>
+            <ul>
+              <li>Check if the host and port are correct</li>
+              <li>Verify your username and password</li>
+              <li>Ensure SSH service is running on the server</li>
+              <li>Check if password authentication is enabled in sshd_config</li>
+              <li>Try using SSH key authentication instead</li>
+            </ul>
+          `,
+          indicator: 'red'
+        });
+      }
+    }
+  });
+}
+
+// ---------- File Editor helpers ----------
+
+function loadFiles(frm) {
+  if (!frm.doc.target_doctype) {
+    frappe.msgprint(__('Select Target DocType first.'));
+    return;
+  }
+  
+  frappe.call({
+    method: "frappe.core.doctype.server_access.server_access.list_doctype_files",
+    freeze: true,
+    freeze_message: __('Loading files...'),
+    args: { target_doctype: frm.doc.target_doctype },
+    callback: r => {
+      const files = r.message || [];
+      frm.set_df_property('filename', 'options', files.join('\n'));
+      
+      if (files.length) {
+        frm.set_value('filename', files[0]);
+        loadFileContent(frm);
+        frappe.show_alert({
+          message: __(`Found ${files.length} editable files`),
+          indicator: 'green'
+        }, 3);
+      } else {
+        frm.set_value('filename', null);
+        frm.set_value('file_content', '');
+        frm.set_value('last_op_log', __('No editable files found.'));
+        frappe.show_alert({
+          message: __('No editable files found'),
+          indicator: 'yellow'
+        }, 3);
+      }
+    }
+  });
+}
+
+function loadFileContent(frm) {
+  if (!frm.doc.target_doctype || !frm.doc.filename) return;
+  
+  frappe.call({
+    method: "frappe.core.doctype.server_access.server_access.read_doctype_file",
+    freeze: true,
+    freeze_message: __('Loading file content...'),
+    args: {
+      target_doctype: frm.doc.target_doctype,
+      filename: frm.doc.filename
+    },
+    callback: r => {
+      frm.set_value('file_content', r.message || '');
+      frm.set_value('last_op_log', __('Loaded ') + frm.doc.filename);
+      
+      // Set code field language based on file extension
+      const ext = frm.doc.filename.split('.').pop().toLowerCase();
+      const langMap = {
+        'py': 'python',
+        'js': 'javascript',
+        'json': 'json',
+        'html': 'html',
+        'css': 'css',
+        'md': 'markdown'
+      };
+      
+      if (langMap[ext] && frm.fields_dict.file_content.df.options !== langMap[ext]) {
+        frm.set_df_property('file_content', 'options', langMap[ext]);
+        frm.refresh_field('file_content');
+      }
+    }
+  });
+}
+
+function saveFile(frm) {
+  if (!frm.doc.target_doctype || !frm.doc.filename) {
+    frappe.msgprint(__('Choose DocType and File first.'));
+    return;
+  }
+  
+  frappe.confirm(
+    __('Are you sure you want to save this file? A backup will be created.'),
+    () => {
+      frappe.call({
+        method: "frappe.core.doctype.server_access.server_access.save_doctype_file",
+        freeze: true,
+        freeze_message: __('Saving file...'),
+        args: {
+          target_doctype: frm.doc.target_doctype,
+          filename: frm.doc.filename,
+          content: frm.doc.file_content || ''
+        },
+        callback: r => {
+          frm.set_value('last_op_log', r.message || 'Saved');
+          frappe.show_alert({
+            message: __('File saved successfully'),
+            indicator: 'green'
+          }, 5);
+        },
+        error: () => {
+          frappe.show_alert({
+            message: __('Failed to save file'),
+            indicator: 'red'
+          }, 5);
+        }
+      });
+    }
+  );
+}

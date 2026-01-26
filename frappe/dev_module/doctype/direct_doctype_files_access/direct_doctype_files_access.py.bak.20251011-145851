@@ -1,0 +1,39 @@
+import frappe
+from frappe.query_builder import DocType
+from frappe.utils import cint
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def doctypes_query(doctype, txt, searchfield, start, page_len, filters):
+    """
+    Whitelisted Link field query for DocType search.
+    Signature MUST match Link query format.
+    Returns a list of tuples [(name,), ...]
+    """
+    excluded = ["Direct Doctype Files Access", "CODE EDITOR Pro"]
+    page_len = cint(page_len) or 20
+    start = cint(start) or 0
+
+    DT = DocType("DocType")
+
+    qb = (
+        frappe.qb.from_(DT)
+        .select(DT.name)
+        .where(DT.issingle == 0)
+        .where(DT.istable == 0)
+        .where(DT.name.notin(excluded))
+    )
+
+    # Optional module filter coming from JS
+    module_name = (filters or {}).get("module")
+    if module_name:
+        qb = qb.where(DT.module == module_name)
+
+    # Apply user-typed text filter
+    if txt:
+        qb = qb.where(DT.name.like(f"%{txt}%"))
+
+    qb = qb.orderby(DT.name).limit(page_len).offset(start)
+
+    rows = qb.run(as_dict=True)
+    return [(r["name"],) for r in rows]

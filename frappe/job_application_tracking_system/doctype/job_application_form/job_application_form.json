@@ -1,0 +1,876 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "format:JOB-APP-{#########}-{MM}-{YY}",
+ "creation": "2025-09-01 19:34:37.261369",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "tab_2_tab",
+  "status_section",
+  "status",
+  "column_break_hrsm",
+  "client_name",
+  "project_name_and_number",
+  "section_break_dsin",
+  "specific_for_project",
+  "column_break_pasl",
+  "multi_projects",
+  "column_break_dtux",
+  "internal_project_number",
+  "section_break_hqau",
+  "project_number_table",
+  "section_break_kmsd",
+  "submission_date",
+  "section_break_tqyg",
+  "is_saudconsult_staff",
+  "column_break_jloa",
+  "employee_number",
+  "section_break_xqvk",
+  "department",
+  "column_break_fdcf",
+  "discipline",
+  "section_break_axnn",
+  "availability",
+  "column_break_djth",
+  "business_sector",
+  "section_break_enbi",
+  "expected_salary",
+  "column_break_bggn",
+  "employment_type",
+  "section_break_hzej",
+  "source",
+  "column_break_bmhb",
+  "type_of_visa",
+  "section_break_uhbl",
+  "footer",
+  "personal_information_tab",
+  "personal_information_section",
+  "full_name",
+  "email",
+  "phone_number",
+  "id_number",
+  "column_break_rwrf",
+  "nationality",
+  "full_name_in_original_language",
+  "date_of_birth",
+  "age_up_to_now",
+  "current_location_section",
+  "country",
+  "column_break_blye",
+  "state_or_region",
+  "column_break_cixy",
+  "city",
+  "section_break_ctju",
+  "full_address",
+  "work_experience_tab",
+  "section_break_jxvf",
+  "years_of_experience",
+  "current_job_position",
+  "column_break_bncw",
+  "current_salary",
+  "last_employer",
+  "section_break_gzib",
+  "key_responsibilities",
+  "projects_involved",
+  "education_background_tab",
+  "section_break_erqt",
+  "highest_degree",
+  "column_break_olox",
+  "field_of_study",
+  "other_field_of_study",
+  "section_break_ilas",
+  "international_certification",
+  "section_break_eanr",
+  "university",
+  "graduation_year",
+  "column_break_ymdb",
+  "grade_or_percentage",
+  "grade",
+  "percentage",
+  "skills_and_competencies_tab",
+  "section_break_udyq",
+  "technical_skills",
+  "soft_skills",
+  "languages",
+  "questions_tab",
+  "section_break_ycer",
+  "join_reason",
+  "section_break_rplf",
+  "challenging_project",
+  "section_break_xauf",
+  "how_many_team_members_have_you_managed_before",
+  "are_you_willing_to_relocate_for_projects__section",
+  "are_you_willing_to_relocate_for_projects",
+  "are_you_open_to_site_based_assignments_section",
+  "are_you_open_to_site_based_assignments",
+  "do_you_have_driver_license__section",
+  "do_you_have_driver_license",
+  "attachments_tab",
+  "section_break_zlyt",
+  "cv_upload",
+  "column_break_jjlp",
+  "personal_photo",
+  "section_break_enok",
+  "portfolio_upload",
+  "column_break_gagp",
+  "certificates_upload",
+  "cv_tab",
+  "cv_a4_pdf_html"
+ ],
+ "fields": [
+  {
+   "fieldname": "personal_information_tab",
+   "fieldtype": "Tab Break",
+   "label": "Personal Information"
+  },
+  {
+   "fieldname": "personal_information_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "* Full name in English as in passport !",
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Full name ",
+   "reqd": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "phone_number",
+   "fieldtype": "Phone",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Phone Number"
+  },
+  {
+   "fieldname": "column_break_rwrf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nationality",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Nationality",
+   "options": "\nAfghanistan\nAlbania\nAlgeria\nAndorra\nAngola\nAntigua and Barbuda\nArgentina\nArmenia\nAustralia\nAustria\nAzerbaijan\nBahamas\nBahrain\nBangladesh\nBarbados\nBelarus\nBelgium\nBelize\nBenin\nBhutan\nBolivia\nBosnia and Herzegovina\nBotswana\nBrazil\nBrunei\nBulgaria\nBurkina Faso\nBurundi\nCabo Verde\nCambodia\nCameroon\nCanada\nCentral African Republic\nChad\nChile\nChina\nColombia\nComoros\nCongo (Congo-Brazzaville)\nCosta Rica\nCroatia\nCuba\nCyprus\nCzechia (Czech Republic)\nDemocratic Republic of the Congo\nDenmark\nDjibouti\nDominica\nDominican Republic\nEcuador\nEgypt\nEl Salvador\nEquatorial Guinea\nEritrea\nEstonia\nEswatini (fmr. \u201cSwaziland\u201d)\nEthiopia\nFiji\nFinland\nFrance\nGabon\nGambia\nGeorgia\nGermany\nGhana\nGreece\nGrenada\nGuatemala\nGuinea\nGuinea-Bissau\nGuyana\nHaiti\nHonduras\nHungary\nIceland\nIndia\nIndonesia\nIran\nIraq\nIreland\nIsrael\nItaly\nJamaica\nJapan\nJordan\nKazakhstan\nKenya\nKiribati\nKuwait\nKyrgyzstan\nLaos\nLatvia\nLebanon\nLesotho\nLiberia\nLibya\nLiechtenstein\nLithuania\nLuxembourg\nMadagascar\nMalawi\nMalaysia\nMaldives\nMali\nMalta\nMarshall Islands\nMauritania\nMauritius\nMexico\nMicronesia\nMoldova\nMonaco\nMongolia\nMontenegro\nMorocco\nMozambique\nMyanmar (Burma)\nNamibia\nNauru\nNepal\nNetherlands\nNew Zealand\nNicaragua\nNiger\nNigeria\nNorth Korea\nNorth Macedonia\nNorway\nOman\nPakistan\nPalau\nPalestine (State of)\nPanama\nPapua New Guinea\nParaguay\nPeru\nPhilippines\nPoland\nPortugal\nQatar\nRomania\nRussia\nRwanda\nSaint Kitts and Nevis\nSaint Lucia\nSaint Vincent and the Grenadines\nSamoa\nSan Marino\nSao Tome and Principe\nSaudi Arabia\nSenegal\nSerbia\nSeychelles\nSierra Leone\nSingapore\nSlovakia\nSlovenia\nSolomon Islands\nSomalia\nSouth Africa\nSouth Korea\nSouth Sudan\nSpain\nSri Lanka\nSudan\nSuriname\nSweden\nSwitzerland\nSyria\nTajikistan\nTanzania\nThailand\nTimor-Leste\nTogo\nTonga\nTrinidad and Tobago\nTunisia\nTurkey\nTurkmenistan\nTuvalu\nUganda\nUkraine\nUnited Arab Emirates\nUnited Kingdom\nUnited States of America\nUruguay\nUzbekistan\nVanuatu\nVatican City\nVenezuela\nVietnam\nYemen\nZambia\nZimbabwe"
+  },
+  {
+   "fieldname": "full_name_in_original_language",
+   "fieldtype": "Data",
+   "label": "Full name in original language"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "current_location_section",
+   "fieldtype": "Section Break",
+   "label": "Current Residence"
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Country",
+   "options": "\nAfghanistan\nAlbania\nAlgeria\nAndorra\nAngola\nAntigua and Barbuda\nArgentina\nArmenia\nAustralia\nAustria\nAzerbaijan\nBahamas\nBahrain\nBangladesh\nBarbados\nBelarus\nBelgium\nBelize\nBenin\nBhutan\nBolivia\nBosnia and Herzegovina\nBotswana\nBrazil\nBrunei\nBulgaria\nBurkina Faso\nBurundi\nCabo Verde\nCambodia\nCameroon\nCanada\nCentral African Republic\nChad\nChile\nChina\nColombia\nComoros\nCongo (Congo-Brazzaville)\nCosta Rica\nCroatia\nCuba\nCyprus\nCzechia (Czech Republic)\nDemocratic Republic of the Congo\nDenmark\nDjibouti\nDominica\nDominican Republic\nEcuador\nEgypt\nEl Salvador\nEquatorial Guinea\nEritrea\nEstonia\nEswatini (fmr. \u201cSwaziland\u201d)\nEthiopia\nFiji\nFinland\nFrance\nGabon\nGambia\nGeorgia\nGermany\nGhana\nGreece\nGrenada\nGuatemala\nGuinea\nGuinea-Bissau\nGuyana\nHaiti\nHonduras\nHungary\nIceland\nIndia\nIndonesia\nIran\nIraq\nIreland\nIsrael\nItaly\nJamaica\nJapan\nJordan\nKazakhstan\nKenya\nKiribati\nKuwait\nKyrgyzstan\nLaos\nLatvia\nLebanon\nLesotho\nLiberia\nLibya\nLiechtenstein\nLithuania\nLuxembourg\nMadagascar\nMalawi\nMalaysia\nMaldives\nMali\nMalta\nMarshall Islands\nMauritania\nMauritius\nMexico\nMicronesia\nMoldova\nMonaco\nMongolia\nMontenegro\nMorocco\nMozambique\nMyanmar (Burma)\nNamibia\nNauru\nNepal\nNetherlands\nNew Zealand\nNicaragua\nNiger\nNigeria\nNorth Korea\nNorth Macedonia\nNorway\nOman\nPakistan\nPalau\nPalestine (State of)\nPanama\nPapua New Guinea\nParaguay\nPeru\nPhilippines\nPoland\nPortugal\nQatar\nRomania\nRussia\nRwanda\nSaint Kitts and Nevis\nSaint Lucia\nSaint Vincent and the Grenadines\nSamoa\nSan Marino\nSao Tome and Principe\nSaudi Arabia\nSenegal\nSerbia\nSeychelles\nSierra Leone\nSingapore\nSlovakia\nSlovenia\nSolomon Islands\nSomalia\nSouth Africa\nSouth Korea\nSouth Sudan\nSpain\nSri Lanka\nSudan\nSuriname\nSweden\nSwitzerland\nSyria\nTajikistan\nTanzania\nThailand\nTimor-Leste\nTogo\nTonga\nTrinidad and Tobago\nTunisia\nTurkey\nTurkmenistan\nTuvalu\nUganda\nUkraine\nUnited Arab Emirates\nUnited Kingdom\nUnited States of America\nUruguay\nUzbekistan\nVanuatu\nVatican City\nVenezuela\nVietnam\nYemen\nZambia\nZimbabwe"
+  },
+  {
+   "fieldname": "column_break_blye",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "state_or_region",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "State / Region"
+  },
+  {
+   "fieldname": "column_break_cixy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "City"
+  },
+  {
+   "fieldname": "section_break_ctju",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "full_address",
+   "fieldtype": "Small Text",
+   "label": "Full Address"
+  },
+  {
+   "fieldname": "tab_2_tab",
+   "fieldtype": "Tab Break",
+   "label": "Position Applied For"
+  },
+  {
+   "fieldname": "column_break_fdcf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Department",
+   "options": "Departments 2"
+  },
+  {
+   "fieldname": "availability",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Expected Join Date ",
+   "options": "Immediately\n1 Month\n2-3 Months\nMore Than 3 Months"
+  },
+  {
+   "fieldname": "section_break_enbi",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "expected_salary",
+   "fieldtype": "Currency",
+   "label": "Expected Salary"
+  },
+  {
+   "fieldname": "column_break_bggn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "employment_type",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Employment Type",
+   "options": "Full-time\nPart-time\nInternship\nFreelance"
+  },
+  {
+   "fieldname": "education_background_tab",
+   "fieldtype": "Tab Break",
+   "label": "Education Background"
+  },
+  {
+   "fieldname": "highest_degree",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Education / Highest Degree",
+   "options": "High School\nDiploma\nBachelor\nMaster\nPhD\nOther"
+  },
+  {
+   "fieldname": "column_break_olox",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "field_of_study",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Field of Study",
+   "options": "Architecture\nInterior Design\nLandscape Architecture\nUrban Design\nUrban & Regional Planning\nCivil Engineering\nStructural Engineering\nTransportation / Highway / Bridge Engineering\nConstruction Management\nGeotechnical Engineering\nInfrastructure Engineering\nSurvey Engineering / Geomatics\nMechanical Engineering\nHVAC Engineering (Building Services)\nPlumbing Engineering (Building Services)\nFire Protection / Safety Engineering\nMaterials Science & Engineering\nElectrical Engineering\nPower Systems Engineering\nLighting / Illumination Engineering\nElectronics / ELV Systems Engineering\nInformation & Communication Technology Engineering\nComputer Engineering / IT Infrastructure\nProject Management / Engineering Management\nQuantity Surveying\nContracts Management (Engineering / Law)\nLaw (Corporate / Construction Law)\nQuality Engineering\nHealth, Safety & Environmental Engineering\nOccupational Health & Safety\nBuilding Information Modeling (BIM)\nCAD / Drafting Technology\nSupply Chain Management\nLogistics\nBusiness Administration\nHuman Resources Management\nEducation / Training & Development\nMarketing\nCommunications\nFinance\nAccounting\nInformation Technology\nComputer Science\nCybersecurity\nOther"
+  },
+  {
+   "fieldname": "other_field_of_study",
+   "fieldtype": "Data",
+   "label": "Other Field of Study"
+  },
+  {
+   "fieldname": "university",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "University / Institute"
+  },
+  {
+   "fieldname": "graduation_year",
+   "fieldtype": "Int",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Graduation Year"
+  },
+  {
+   "fieldname": "work_experience_tab",
+   "fieldtype": "Tab Break",
+   "label": "Work Experience"
+  },
+  {
+   "fieldname": "years_of_experience",
+   "fieldtype": "Int",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Years of Experience",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "column_break_bncw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_gzib",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "last_employer",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Last Employer"
+  },
+  {
+   "fieldname": "key_responsibilities",
+   "fieldtype": "Text Editor",
+   "label": "Key Responsibilities"
+  },
+  {
+   "fieldname": "skills_and_competencies_tab",
+   "fieldtype": "Tab Break",
+   "label": "Skills & Competencies"
+  },
+  {
+   "fieldname": "technical_skills",
+   "fieldtype": "Table",
+   "label": "Technical Skills",
+   "options": "Technical Skills"
+  },
+  {
+   "fieldname": "soft_skills",
+   "fieldtype": "Table",
+   "label": "Soft Skills",
+   "options": "Soft Skills"
+  },
+  {
+   "fieldname": "languages",
+   "fieldtype": "Table",
+   "label": "Languages",
+   "options": "Languages"
+  },
+  {
+   "fieldname": "attachments_tab",
+   "fieldtype": "Tab Break",
+   "label": "Attachments"
+  },
+  {
+   "fieldname": "cv_upload",
+   "fieldtype": "Attach",
+   "label": "CV Upload"
+  },
+  {
+   "fieldname": "column_break_jjlp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "portfolio_upload",
+   "fieldtype": "Attach",
+   "label": "Portfolio Upload"
+  },
+  {
+   "fieldname": "certificates_upload",
+   "fieldtype": "Attach",
+   "label": "Certificates Upload"
+  },
+  {
+   "fieldname": "questions_tab",
+   "fieldtype": "Tab Break",
+   "label": "Questions"
+  },
+  {
+   "fieldname": "are_you_willing_to_relocate_for_projects",
+   "fieldtype": "Select",
+   "options": "Yes\nNo"
+  },
+  {
+   "fieldname": "are_you_open_to_site_based_assignments",
+   "fieldtype": "Select",
+   "options": "Yes\nNo"
+  },
+  {
+   "description": "Optional if Leadership role",
+   "fieldname": "how_many_team_members_have_you_managed_before",
+   "fieldtype": "Int"
+  },
+  {
+   "fieldname": "section_break_axnn",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_djth",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_enok",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_gagp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "personal_photo",
+   "fieldtype": "Attach Image",
+   "label": "Personal Photo"
+  },
+  {
+   "fieldname": "join_reason",
+   "fieldtype": "Text"
+  },
+  {
+   "fieldname": "challenging_project",
+   "fieldtype": "Text"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_rplf",
+   "fieldtype": "Section Break",
+   "label": "Describe your most challenging project and how you handled it ?"
+  },
+  {
+   "fieldname": "current_salary",
+   "fieldtype": "Currency",
+   "label": "Current Salary "
+  },
+  {
+   "fieldname": "section_break_xqvk",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "section_break_erqt",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "section_break_eanr",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_ymdb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_jxvf",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "section_break_udyq",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "section_break_zlyt",
+   "fieldtype": "Section Break"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_ycer",
+   "fieldtype": "Section Break",
+   "label": "Why do you want to join our company ?"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_xauf",
+   "fieldtype": "Section Break",
+   "label": "How many team members have you managed before ?"
+  },
+  {
+   "default": "Today",
+   "fieldname": "submission_date",
+   "fieldtype": "Date",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Submission Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_uhbl",
+   "fieldtype": "Section Break",
+   "hidden": 1
+  },
+  {
+   "default": "CAPITAL PROJECT \u00ae  \n\ud83c\udf0e Www.capital-project.io   \n\u2709\ufe0f hello@capital-project.io\n",
+   "fieldname": "footer",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "projects_involved",
+   "fieldtype": "Table",
+   "label": "Projects Involved",
+   "options": "Projects Involved"
+  },
+  {
+   "fieldname": "discipline",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Discipline",
+   "options": "Discipline"
+  },
+  {
+   "fieldname": "current_job_position",
+   "fieldtype": "Data",
+   "label": "Current Job Position "
+  },
+  {
+   "fieldname": "business_sector",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Business Sector",
+   "options": "Business Sector"
+  },
+  {
+   "fieldname": "section_break_hzej",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Source",
+   "options": "Internal Transfer\nReferral\nJob Ad \u2013 Company Website\nJob Ad \u2013 LinkedIn Sponsored\nJob Ad \u2013 Social Media\nJob Platform \u2013 LinkedIn\nJob Platform \u2013 Bayt\nJob Platform \u2013 Naukrigulf\nJob Platform \u2013 Indeed\nRecruitment Agency\nOther"
+  },
+  {
+   "fieldname": "column_break_bmhb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "type_of_visa",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Type of Visa",
+   "options": "Transferable residence\nWork Vist\nTourist visa\nFinal Exit"
+  },
+  {
+   "fieldname": "section_break_tqyg",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_jloa",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.is_saudconsult_staff=='Yes'",
+   "fieldname": "employee_number",
+   "fieldtype": "Data",
+   "label": "Employee Number",
+   "mandatory_depends_on": "eval:doc.is_saudconsult_staff=='Yes'"
+  },
+  {
+   "fieldname": "age_up_to_now",
+   "fieldtype": "Int",
+   "label": "Age Up to Now",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval: doc.grade_or_percentage == \"Grade\"",
+   "fieldname": "grade",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Grade",
+   "mandatory_depends_on": "eval: doc.grade_or_percentage == \"Grade\"",
+   "options": "A (Excellent)\nB (Good)\nC (Average)\nC (Average)\nD (Pass)"
+  },
+  {
+   "fieldname": "percentage",
+   "fieldtype": "Int",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Percentage (0\u2013100%)"
+  },
+  {
+   "fieldname": "grade_or_percentage",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Grade Or Percentage (0\u2013100%)",
+   "options": "Grade\nPercentage (0\u2013100%)"
+  },
+  {
+   "fieldname": "do_you_have_driver_license",
+   "fieldtype": "Select",
+   "options": "Yes\nNo"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "are_you_willing_to_relocate_for_projects__section",
+   "fieldtype": "Section Break",
+   "label": "Are you willing to relocate for projects ?"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "are_you_open_to_site_based_assignments_section",
+   "fieldtype": "Section Break",
+   "label": "Are you open to site based assignments ?"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "do_you_have_driver_license__section",
+   "fieldtype": "Section Break",
+   "label": "Do you have Driver License ?"
+  },
+  {
+   "default": "No",
+   "fieldname": "specific_for_project",
+   "fieldtype": "Select",
+   "label": "Specific for Project / Proposal",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "section_break_kmsd",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_pasl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval: doc.specific_for_project == \"Yes\"",
+   "fieldname": "multi_projects",
+   "fieldtype": "Select",
+   "label": "Multi Projects / Proposals",
+   "mandatory_depends_on": "eval: doc.specific_for_project == \"Yes\"",
+   "options": "\nNominated Project / Proposal\nMulti Projects / Proposals"
+  },
+  {
+   "fieldname": "column_break_dtux",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_hqau",
+   "fieldtype": "Section Break",
+   "label": "Projects / Proposals Numbers"
+  },
+  {
+   "depends_on": "eval: doc.multi_projects == \"Multi Projects / Proposals\"",
+   "fieldname": "project_number_table",
+   "fieldtype": "Table",
+   "label": "Projects / Proposals",
+   "mandatory_depends_on": "eval: doc.multi_projects == \"Multi Projects / Proposals\"",
+   "options": "Project Number Table"
+  },
+  {
+   "fieldname": "is_saudconsult_staff",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "SAUDCONSULT STAFF",
+   "options": "\nYes\nNo",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval: doc.multi_projects == \"Nominated Project / Proposal\"",
+   "fieldname": "internal_project_number",
+   "fieldtype": "Int",
+   "label": "Internal Project / Proposal Number",
+   "mandatory_depends_on": "eval: doc.multi_projects == \"Nominated Project / Proposal\""
+  },
+  {
+   "fieldname": "id_number",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "ID Number for Your Original Country"
+  },
+  {
+   "fieldname": "cv_tab",
+   "fieldtype": "Tab Break",
+   "label": "CV"
+  },
+  {
+   "fieldname": "cv_a4_pdf_html",
+   "fieldtype": "HTML",
+   "label": "CV A4 PDF HTML"
+  },
+  {
+   "bold": 1,
+   "default": "Under Review",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Internal Status",
+   "options": "Under Review\nHired\nAssigned to the project and awaiting approval\nAssigned to the client and awaiting approval\nRejected by the client\nRejected by HR\nHired for the project\nHired for SAUD\nRejected\nOn Hold\nTerminated"
+  },
+  {
+   "fieldname": "international_certification",
+   "fieldtype": "Table",
+   "label": "International Certification ",
+   "options": "International Certification"
+  },
+  {
+   "fieldname": "section_break_ilas",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_hrsm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval: doc.status == \"Assigned to the client and awaiting approval\"",
+   "fieldname": "client_name",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Client Name",
+   "mandatory_depends_on": "eval: doc.status == \"Assigned to the client and awaiting approval\""
+  },
+  {
+   "fieldname": "section_break_dsin",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval: doc.status == \"Assigned to the project and awaiting approval\"",
+   "fieldname": "project_name_and_number",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Project Name & Number",
+   "mandatory_depends_on": "eval: doc.status == \"Assigned to the project and awaiting approval\""
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  }
+ ],
+ "grid_page_length": 50,
+ "hide_toolbar": 1,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-01-07 16:37:59.468169",
+ "modified_by": "Administrator",
+ "module": "Job Application Tracking System",
+ "name": "Job Application Form",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Job Application Role",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "track_seen": 1,
+ "track_views": 1
+}

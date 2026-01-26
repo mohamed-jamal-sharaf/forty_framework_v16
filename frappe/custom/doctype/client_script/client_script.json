@@ -1,0 +1,263 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "format:CS-{MM}{YY}-{####} - {version}",
+ "creation": "2013-01-10 16:34:01",
+ "description": "Adds a custom client script to a DocType",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "script_code_name",
+  "column_break_hvfz",
+  "version",
+  "section_break_papb",
+  "dt",
+  "view",
+  "reference_app",
+  "module",
+  "column_break_3",
+  "enabled",
+  "version_log",
+  "notes",
+  "new_version",
+  "section_break_6",
+  "script",
+  "sample",
+  "tab_2_tab",
+  "client_script_analytic",
+  "documentation_tab",
+  "documentation",
+  "column_break_vmhq",
+  "documentation_2",
+  "column_break_wuwc",
+  "documentation_3",
+  "section_break_diyv",
+  "client_script_analytic_by_user"
+ ],
+ "fields": [
+  {
+   "fieldname": "dt",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "DocType",
+   "oldfieldname": "dt",
+   "oldfieldtype": "Link",
+   "options": "DocType",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "script",
+   "fieldtype": "Code",
+   "label": "Script",
+   "oldfieldname": "script",
+   "oldfieldtype": "Code",
+   "options": "JS"
+  },
+  {
+   "fieldname": "sample",
+   "fieldtype": "HTML",
+   "label": "Sample"
+  },
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Enabled"
+  },
+  {
+   "default": "Form",
+   "fieldname": "view",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Apply To",
+   "options": "List\nForm",
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "module",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Module (for export)",
+   "options": "Module Def"
+  },
+  {
+   "fieldname": "section_break_6",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Notes"
+  },
+  {
+   "fieldname": "tab_2_tab",
+   "fieldtype": "Tab Break",
+   "label": "Client Script Analytic "
+  },
+  {
+   "fieldname": "client_script_analytic",
+   "fieldtype": "Text Editor",
+   "label": "Client Script Analytic ",
+   "options": "HTML"
+  },
+  {
+   "fieldname": "documentation_tab",
+   "fieldtype": "Tab Break",
+   "label": "Documentation "
+  },
+  {
+   "fieldname": "documentation",
+   "fieldtype": "Attach",
+   "label": "Documentation "
+  },
+  {
+   "fieldname": "section_break_diyv",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "client_script_analytic_by_user",
+   "fieldtype": "Text Editor",
+   "label": "Client Script Analytic By User"
+  },
+  {
+   "fieldname": "column_break_vmhq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "documentation_2",
+   "fieldtype": "Attach",
+   "label": "Documentation"
+  },
+  {
+   "fieldname": "column_break_wuwc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "documentation_3",
+   "fieldtype": "Attach",
+   "label": "Documentation"
+  },
+  {
+   "fieldname": "reference_app",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Reference App",
+   "options": "App List"
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Code Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "script_code_name",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Script Code Name"
+  },
+  {
+   "fieldname": "column_break_hvfz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_papb",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "new_version",
+   "fieldtype": "Button",
+   "label": "Create New Version"
+  },
+  {
+   "fieldname": "version_log",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Title "
+  }
+ ],
+ "icon": "fa fa-glass",
+ "idx": 1,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-07-23 15:11:18.322371",
+ "modified_by": "Administrator",
+ "module": "Custom",
+ "name": "Client Script",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "if_owner": 1,
+   "read": 1,
+   "role": "System Manager",
+   "select": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "if_owner": 1,
+   "read": 1,
+   "role": "Developer User Role",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Developer User Role",
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "track_seen": 1,
+ "track_views": 1
+}

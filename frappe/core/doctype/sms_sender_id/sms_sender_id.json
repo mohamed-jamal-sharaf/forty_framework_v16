@@ -1,0 +1,81 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:{sender_name}",
+ "creation": "2025-09-28 15:58:54.675911",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sender_name",
+  "active_networks",
+  "sender_token",
+  "is_active",
+  "last_action"
+ ],
+ "fields": [
+  {
+   "bold": 1,
+   "default": "Capital CNC",
+   "fieldname": "sender_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Sender Name",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "Vodafone,Orange,Etisalat,We,",
+   "fieldname": "active_networks",
+   "fieldtype": "Data",
+   "label": "Active Networks",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "1b05e58d7d4c4e4a0184d6c7280e09f2239861b06488d303c2fba73a8c1ddd17",
+   "fieldname": "sender_token",
+   "fieldtype": "Small Text",
+   "label": "Sender Token",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active "
+  },
+  {
+   "fieldname": "last_action",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Last Action"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-10-04 11:22:54.972153",
+ "modified_by": "Administrator",
+ "module": "Core",
+ "name": "SMS Sender ID",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

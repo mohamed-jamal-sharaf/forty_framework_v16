@@ -1,0 +1,44 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-09-01 20:13:01.842179",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "languages",
+  "level"
+ ],
+ "fields": [
+  {
+   "fieldname": "languages",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Languages",
+   "options": "Arabic\nEnglish\nFrench\nSpanish\nGerman\nItalian\nPortuguese\nRussian\nChinese (Mandarin)\nJapanese\nKorean\nTurkish\nHindi\nUrdu\nBengali\nPersian (Farsi)\nGreek\nDutch\nSwedish\nNorwegian\nDanish\nFinnish\nPolish\nCzech\nSlovak\nHungarian\nRomanian\nBulgarian\nSerbian\nCroatian\nBosnian\nSlovenian\nAlbanian\nHebrew\nMalay\nIndonesian\nThai\nVietnamese\nFilipino (Tagalog)\nSwahili\nAmharic\nSomali\nPashto\nKurdish\nArmenian\nGeorgian\nLithuanian\nLatvian\nEstonian\nIcelandic\nIrish (Gaelic)\nScottish Gaelic\nWelsh\nMaltese",
+   "reqd": 1
+  },
+  {
+   "fieldname": "level",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Level",
+   "options": "Basic\nIntermediate\nAdvanced\nFluent",
+   "reqd": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-09-20 14:40:32.970276",
+ "modified_by": "Administrator",
+ "module": "Job Application Tracking System",
+ "name": "Languages",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

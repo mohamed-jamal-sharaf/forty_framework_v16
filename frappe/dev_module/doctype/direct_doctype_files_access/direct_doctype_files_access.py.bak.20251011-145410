@@ -1,0 +1,27 @@
+import frappe
+
+@frappe.whitelist()
+def get_filtered_doctypes(dev_module=None):
+    """
+    Return doctypes filtered by module name
+    and exclude specific doctypes.
+    """
+    excluded = ["Direct Doctype Files Access", "CODE EDITOR Pro"]
+
+    filters = {
+        "name": ["not in", excluded],
+        "issingle": 0,
+        "istable": 0
+    }
+
+    if dev_module:
+        filters["module"] = dev_module
+
+    doctypes = frappe.get_all(
+        "DocType",
+        filters=filters,
+        fields=["name", "module"],
+        order_by="name"
+    )
+
+    return [d.name for d in doctypes]

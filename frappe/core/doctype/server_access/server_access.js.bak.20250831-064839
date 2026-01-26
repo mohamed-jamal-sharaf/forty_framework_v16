@@ -1,0 +1,807 @@
+// Enhanced Server Access Form Script - Fixed Version with Fullscreen
+
+// Global configuration
+const SERVER_ACCESS_CONFIG = {
+	EDITOR: {
+		DEFAULT_HEIGHT: 600,
+		DEFAULT_FONT_SIZE: 14,
+		MIN_FONT_SIZE: 10,
+		MAX_FONT_SIZE: 24,
+		THEMES: {
+			LIGHT: 'vs',
+			DARK: 'vs-dark',
+			HIGH_CONTRAST: 'hc-black'
+		}
+	},
+	FILE_EXTENSIONS: {
+		'py': { language: 'python', icon: '🐍' },
+		'js': { language: 'javascript', icon: '📜' },
+		'json': { language: 'json', icon: '📋' },
+		'html': { language: 'html', icon: '🌐' },
+		'css': { language: 'css', icon: '🎨' },
+		'scss': { language: 'scss', icon: '🎨' },
+		'sql': { language: 'sql', icon: '🗄️' },
+		'md': { language: 'markdown', icon: '📝' },
+		'yml': { language: 'yaml', icon: '⚙️' },
+		'yaml': { language: 'yaml', icon: '⚙️' },
+		'xml': { language: 'xml', icon: '📄' },
+		'txt': { language: 'plaintext', icon: '📄' }
+	},
+	MONACO_CDN: {
+		VERSION: '0.44.0',
+		BASE_URL: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor'
+	},
+	AUTOSAVE: {
+		ENABLED: true,
+		DELAY: 2000
+	}
+};
+
+// Global state
+let monacoEditor = null;
+let monacoInitialized = false;
+let isFullscreen = false;
+let editorState = {
+	currentFile: null,
+	isDirty: false,
+	lastSavedContent: '',
+	autoSaveTimer: null,
+	theme: localStorage.getItem('server_access_theme') || SERVER_ACCESS_CONFIG.EDITOR.THEMES.LIGHT,
+	fontSize: parseInt(localStorage.getItem('server_access_font_size')) || SERVER_ACCESS_CONFIG.EDITOR.DEFAULT_FONT_SIZE
+};
+
+// Utility functions
+function debounce(func, wait) {
+	let timeout;
+	return function executedFunction(...args) {
+		const later = () => {
+			clearTimeout(timeout);
+			func.apply(this, args);
+		};
+		clearTimeout(timeout);
+		timeout = setTimeout(later, wait);
+	};
+}
+
+function getFileInfo(filename) {
+	if (!filename) return { extension: '', language: 'plaintext', icon: '📄' };
+	const ext = filename.split('.').pop().toLowerCase();
+	return SERVER_ACCESS_CONFIG.FILE_EXTENSIONS[ext] || { language: 'plaintext', icon: '📄' };
+}
+
+function formatFileSize(bytes) {
+	if (bytes === 0) return '0 Bytes';
+	const k = 1024;
+	const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function showNotification(message, type = 'info') {
+	const indicator = {
+		'success': 'green',
+		'error': 'red',
+		'warning': 'orange',
+		'info': 'blue'
+	}[type] || 'blue';
+
+	frappe.show_alert({ message: __(message), indicator: indicator }, 5);
+}
+
+// Set ACE editor mode
+function setEditorMode(frm) {
+	const fileInfo = getFileInfo(frm.doc.filename || '');
+	const field = frm.get_field('file_content');
+	if (!field || !field.editor) return;
+
+	try {
+		field.editor.session.setMode("ace/mode/" + fileInfo.language);
+	} catch (e) {
+		console.warn('Failed to set ACE editor mode:', e);
+	}
+}
+
+// Load files from server
+function loadFiles(frm) {
+	if (!frm.doc.target_doctype) {
+		showNotification('Please select a Target DocType first.', 'warning');
+		return;
+	}
+
+	frappe.call({
+		method: "frappe.core.doctype.server_access.server_access.list_doctype_files",
+		args: { target_doctype: frm.doc.target_doctype },
+		callback: function (r) {
+			const files = r.message || [];
+
+			// Store clean filenames for later use
+			frm._clean_files = files;
+
+			// Add icons to file list for display
+			const fileOptions = files.map(file => {
+				const info = getFileInfo(file);
+				return `${info.icon} ${file}`;
+			}).join('\n');
+
+			frm.set_df_property('filename', 'options', fileOptions);
+
+			if (files.length) {
+				frm.set_value('filename', `${getFileInfo(files[0]).icon} ${files[0]}`);
+				loadFileContent(frm);
+			} else {
+				frm.set_value('filename', null);
+				frm.set_value('file_content', '');
+				frm.set_value('last_op_log', __('No editable files found.'));
+			}
+		},
+		error: function (error) {
+			console.error('Error loading files:', error);
+			showNotification('Failed to load files', 'error');
+		}
+	});
+}
+
+// Load file content
+function loadFileContent(frm) {
+	if (!frm.doc.target_doctype || !frm.doc.filename) return;
+
+	// Clean filename (remove icon if present)
+	let cleanFilename = frm.doc.filename;
+	if (cleanFilename.includes(' ')) {
+		cleanFilename = cleanFilename.substring(cleanFilename.indexOf(' ') + 1);
+	}
+
+	frappe.call({
+		method: "frappe.core.doctype.server_access.server_access.read_doctype_file",
+		args: {
+			target_doctype: frm.doc.target_doctype,
+			filename: cleanFilename
+		},
+		callback: function (r) {
+			const content = r.message || '';
+			frm.set_value('file_content', content);
+			editorState.lastSavedContent = content;
+			editorState.isDirty = false;
+
+			// Update Monaco editor if open
+			if (monacoEditor && frm.fields_dict.code_editor_html.$wrapper.find('#monaco-editor-instance').is(':visible')) {
+				monacoEditor.setValue(content);
+			}
+
+			frm.set_value('last_op_log', __('Loaded: ') + cleanFilename);
+			setEditorMode(frm);
+		},
+		error: function (error) {
+			console.error('Error loading file content:', error);
+			showNotification('Failed to load file content', 'error');
+		}
+	});
+}
+
+// Save file
+function saveFile(frm, showAlert = true) {
+	if (!frm.doc.target_doctype || !frm.doc.filename) {
+		showNotification('Please choose DocType and File first.', 'warning');
+		return;
+	}
+
+	// Clean filename
+	let cleanFilename = frm.doc.filename;
+	if (cleanFilename.includes(' ')) {
+		cleanFilename = cleanFilename.substring(cleanFilename.indexOf(' ') + 1);
+	}
+
+	// Get content from Monaco editor if it's open
+	let content = frm.doc.file_content || '';
+	if (monacoEditor && frm.fields_dict.code_editor_html.$wrapper.find('#monaco-editor-instance').is(':visible')) {
+		content = monacoEditor.getValue();
+	}
+
+	frappe.call({
+		method: "frappe.core.doctype.server_access.server_access.save_doctype_file",
+		args: {
+			target_doctype: frm.doc.target_doctype,
+			filename: cleanFilename,
+			content: content
+		},
+		callback: function (r) {
+			frm.set_value('last_op_log', r.message || 'Saved');
+			frm.set_value('file_content', content);
+			editorState.lastSavedContent = content;
+			editorState.isDirty = false;
+
+			if (showAlert) {
+				showNotification('File saved successfully', 'success');
+			}
+
+			updateSaveIndicator(frm, false);
+		},
+		error: function (error) {
+			console.error('Error saving file:', error);
+			showNotification('Failed to save file', 'error');
+		}
+	});
+}
+
+// Open Monaco editor
+function openInCodeEditor(frm) {
+	if (!frm.doc.filename || !frm.doc.file_content) {
+		showNotification('Please select a file first', 'warning');
+		return;
+	}
+
+	if (!monacoInitialized) {
+		loadMonacoEditor(() => {
+			initializeMonacoEditor(frm);
+		});
+	} else {
+		initializeMonacoEditor(frm);
+	}
+
+	frm.toggle_display('code_editor_html', true);
+	frm.scroll_to_field('code_editor_html');
+}
+
+// Load Monaco Editor
+function loadMonacoEditor(callback) {
+	if (window.monaco) {
+		monacoInitialized = true;
+		callback();
+		return;
+	}
+
+	const script = document.createElement('script');
+	script.src = `${SERVER_ACCESS_CONFIG.MONACO_CDN.BASE_URL}/${SERVER_ACCESS_CONFIG.MONACO_CDN.VERSION}/min/vs/loader.min.js`;
+	script.onload = () => {
+		require.config({
+			paths: {
+				'vs': `${SERVER_ACCESS_CONFIG.MONACO_CDN.BASE_URL}/${SERVER_ACCESS_CONFIG.MONACO_CDN.VERSION}/min/vs`
+			}
+		});
+
+		require(['vs/editor/editor.main'], () => {
+			monacoInitialized = true;
+			setupFrappeCompletions();
+			callback();
+		});
+	};
+
+	script.onerror = () => {
+		showNotification('Failed to load Monaco Editor', 'error');
+	};
+
+	document.head.appendChild(script);
+}
+
+// Toggle fullscreen
+function toggleFullscreen(frm) {
+	const container = frm.fields_dict.code_editor_html.$wrapper.find('.monaco-editor-container');
+	const fullscreenBtn = container.find('.editor-fullscreen-toggle');
+
+	if (!isFullscreen) {
+		// Enter fullscreen
+		container.css({
+			position: 'fixed',
+			top: 0,
+			left: 0,
+			width: '100vw',
+			height: '100vh',
+			zIndex: 9999,
+			borderRadius: 0
+		});
+
+		fullscreenBtn.html('<i class="fa fa-compress"></i> Exit Fullscreen');
+		isFullscreen = true;
+
+		// Add ESC key handler
+		$(document).on('keydown.fullscreen', function (e) {
+			if (e.key === 'Escape' && isFullscreen) {
+				toggleFullscreen(frm);
+			}
+		});
+
+	} else {
+		// Exit fullscreen
+		container.css({
+			position: 'relative',
+			top: 'auto',
+			left: 'auto',
+			width: '100%',
+			height: SERVER_ACCESS_CONFIG.EDITOR.DEFAULT_HEIGHT + 'px',
+			zIndex: 'auto',
+			borderRadius: '4px'
+		});
+
+		fullscreenBtn.html('<i class="fa fa-expand"></i> Fullscreen');
+		isFullscreen = false;
+
+		// Remove ESC key handler
+		$(document).off('keydown.fullscreen');
+	}
+
+	// Trigger editor layout update
+	if (monacoEditor) {
+		setTimeout(() => {
+			monacoEditor.layout();
+		}, 300);
+	}
+}
+
+// Initialize Monaco Editor
+function initializeMonacoEditor(frm) {
+	const container = document.getElementById('monaco-editor-instance');
+	const fileInfo = getFileInfo(frm.doc.filename);
+
+	// Dispose previous editor
+	if (monacoEditor) {
+		monacoEditor.dispose();
+	}
+
+	// Create Monaco Editor
+	monacoEditor = monaco.editor.create(container, {
+		value: frm.doc.file_content,
+		language: fileInfo.language,
+		theme: editorState.theme,
+		fontSize: editorState.fontSize,
+		automaticLayout: true,
+		minimap: {
+			enabled: true,
+			showSlider: 'mouseover'
+		},
+		wordWrap: 'on',
+		scrollBeyondLastLine: false,
+		renderWhitespace: 'selection',
+		suggestOnTriggerCharacters: true,
+		quickSuggestions: true,
+		folding: true,
+		foldingStrategy: 'indentation',
+		showFoldingControls: 'mouseover',
+		formatOnPaste: true,
+		formatOnType: true,
+		bracketPairColorization: {
+			enabled: true
+		},
+		suggest: {
+			showMethods: true,
+			showFunctions: true,
+			showConstructors: true,
+			showFields: true,
+			showVariables: true,
+			showClasses: true,
+			showModules: true,
+			showProperties: true,
+			showSnippets: true
+		},
+		mouseWheelZoom: true,
+		smoothScrolling: true,
+		cursorBlinking: 'smooth',
+		cursorSmoothCaretAnimation: true,
+		contextmenu: true
+	});
+
+	editorState.currentFile = frm.doc.filename;
+
+	// Setup event handlers
+	setupEditorEventHandlers(frm);
+	updateEditorStatus(frm);
+	setupAutoSave(frm);
+
+	// Sync changes back to form field
+	monacoEditor.onDidChangeModelContent(() => {
+		const content = monacoEditor.getValue();
+		frm.set_value('file_content', content, false, true);
+	});
+
+	// Setup keyboard shortcuts
+	setupKeyboardShortcuts(frm);
+}
+
+// Setup editor event handlers
+function setupEditorEventHandlers(frm) {
+	const wrapper = frm.fields_dict.code_editor_html.$wrapper;
+
+	// Theme selector
+	wrapper.find('.editor-theme-select').off('change').on('change', function () {
+		const theme = $(this).val();
+		editorState.theme = theme;
+		localStorage.setItem('server_access_theme', theme);
+		if (monacoEditor) {
+			monacoEditor.updateOptions({ theme: theme });
+		}
+	});
+
+	// Font size control
+	wrapper.find('.editor-font-size').off('input').on('input', function () {
+		const size = parseInt($(this).val());
+		editorState.fontSize = size;
+		localStorage.setItem('server_access_font_size', size);
+		if (monacoEditor) {
+			monacoEditor.updateOptions({ fontSize: size });
+		}
+		wrapper.find('.font-size-value').text(size + 'px');
+	});
+
+	// Format document
+	wrapper.find('.editor-format').off('click').on('click', () => {
+		if (monacoEditor) {
+			monacoEditor.getAction('editor.action.formatDocument').run();
+			showNotification('Document formatted', 'success');
+		}
+	});
+
+	// Find
+	wrapper.find('.editor-find').off('click').on('click', () => {
+		if (monacoEditor) {
+			monacoEditor.getAction('actions.find').run();
+		}
+	});
+
+	// Command palette
+	wrapper.find('.editor-command-palette').off('click').on('click', () => {
+		if (monacoEditor) {
+			monacoEditor.getAction('editor.action.quickCommand').run();
+		}
+	});
+
+	// Toggle minimap
+	wrapper.find('.editor-minimap-toggle').off('click').on('click', function () {
+		if (monacoEditor) {
+			const minimapConfig = monacoEditor.getOptions()._values.minimap || {};
+			const enabled = minimapConfig.enabled !== false;
+			monacoEditor.updateOptions({
+				minimap: { enabled: !enabled }
+			});
+			$(this).text(!enabled ? '📍 Hide Minimap' : '📍 Show Minimap');
+		}
+	});
+
+	// Toggle word wrap
+	wrapper.find('.editor-wrap-toggle').off('click').on('click', function () {
+		if (monacoEditor) {
+			const currentWrap = monacoEditor.getOptions()._values.wordWrap;
+			const newWrap = currentWrap === 'on' ? 'off' : 'on';
+			monacoEditor.updateOptions({ wordWrap: newWrap });
+			$(this).text(newWrap === 'on' ? '↩️ Unwrap' : '↩️ Wrap');
+		}
+	});
+
+	// Fullscreen toggle
+	wrapper.find('.editor-fullscreen-toggle').off('click').on('click', () => {
+		toggleFullscreen(frm);
+	});
+}
+
+// Setup keyboard shortcuts
+function setupKeyboardShortcuts(frm) {
+	if (!monacoEditor) return;
+
+	// Save file: Ctrl/Cmd + S
+	monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+		saveFile(frm);
+	});
+
+	// Format document: Shift + Alt + F
+	monacoEditor.addCommand(
+		monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF,
+		() => {
+			monacoEditor.getAction('editor.action.formatDocument').run();
+		}
+	);
+
+	// Quick open: Ctrl/Cmd + P
+	monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
+		showQuickOpen(frm);
+	});
+
+	// Fullscreen: F11
+	monacoEditor.addCommand(monaco.KeyCode.F11, () => {
+		toggleFullscreen(frm);
+	});
+}
+
+// Show quick open dialog
+function showQuickOpen(frm) {
+	frappe.prompt({
+		label: 'Quick Open File',
+		fieldname: 'filename',
+		fieldtype: 'Select',
+		options: frm.fields_dict.filename.df.options,
+		default: frm.doc.filename
+	}, (values) => {
+		if (values.filename && values.filename !== frm.doc.filename) {
+			frm.set_value('filename', values.filename);
+			loadFileContent(frm);
+		}
+	}, 'Quick Open', 'Open');
+}
+
+// Update editor status
+function updateEditorStatus(frm) {
+	const wrapper = frm.fields_dict.code_editor_html.$wrapper;
+	const fileInfo = getFileInfo(frm.doc.filename);
+
+	if (monacoEditor) {
+		const content = monacoEditor.getValue();
+		const lines = content.split('\n').length;
+		const size = new Blob([content]).size;
+
+		let cleanFilename = frm.doc.filename;
+		if (cleanFilename.includes(' ')) {
+			cleanFilename = cleanFilename.substring(cleanFilename.indexOf(' ') + 1);
+		}
+
+		const statusText = `${fileInfo.icon} ${cleanFilename} • ${fileInfo.language} • ${lines} lines • ${formatFileSize(size)}`;
+		wrapper.find('.editor-status').text(statusText);
+	}
+}
+
+// Update save indicator
+function updateSaveIndicator(frm, isDirty) {
+	const wrapper = frm.fields_dict.code_editor_html.$wrapper;
+	const indicator = wrapper.find('.save-indicator');
+
+	if (isDirty) {
+		indicator.text('● Unsaved').css('color', '#ff6b6b');
+	} else {
+		indicator.text('● Saved').css('color', '#51cf66');
+	}
+}
+
+// Setup auto-save
+function setupAutoSave(frm) {
+	if (!SERVER_ACCESS_CONFIG.AUTOSAVE.ENABLED || !monacoEditor) return;
+
+	const autoSave = debounce(() => {
+		if (editorState.isDirty) {
+			saveFile(frm, false);
+		}
+	}, SERVER_ACCESS_CONFIG.AUTOSAVE.DELAY);
+
+	monacoEditor.onDidChangeModelContent(() => {
+		const currentContent = monacoEditor.getValue();
+		if (currentContent !== editorState.lastSavedContent) {
+			editorState.isDirty = true;
+			updateSaveIndicator(frm, true);
+			autoSave();
+		}
+	});
+}
+
+// Create editor HTML
+function createEditorHTML() {
+	return `
+    <div class="monaco-editor-container" style="position: relative; width: 100%; height: ${SERVER_ACCESS_CONFIG.EDITOR.DEFAULT_HEIGHT}px; border: 1px solid #d1d8dd; border-radius: 4px; overflow: hidden; transition: all 0.3s ease;">
+      <div class="editor-toolbar" style="background: #f5f7fa; border-bottom: 1px solid #d1d8dd; padding: 8px 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <button class="btn btn-xs btn-default editor-format" title="Format Document (Shift+Alt+F)">
+              <i class="fa fa-indent"></i> Format
+            </button>
+            <button class="btn btn-xs btn-default editor-find" title="Find (Ctrl+F)">
+              <i class="fa fa-search"></i> Find
+            </button>
+            <button class="btn btn-xs btn-default editor-command-palette" title="Command Palette (F1)">
+              <i class="fa fa-terminal"></i> Commands
+            </button>
+            <button class="btn btn-xs btn-primary editor-fullscreen-toggle" title="Toggle Fullscreen (F11)">
+              <i class="fa fa-expand"></i> Fullscreen
+            </button>
+            <div class="btn-group">
+              <button class="btn btn-xs btn-default editor-minimap-toggle">📍 Hide Minimap</button>
+              <button class="btn btn-xs btn-default editor-wrap-toggle">↩️ Unwrap</button>
+            </div>
+          </div>
+          
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label style="margin: 0; font-size: 11px; color: #666;">Theme:</label>
+              <select class="editor-theme-select" style="height: 24px; font-size: 11px; padding: 2px 6px;">
+                <option value="vs">Light</option>
+                <option value="vs-dark">Dark</option>
+                <option value="hc-black">High Contrast</option>
+              </select>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label style="margin: 0; font-size: 11px; color: #666;">Font:</label>
+              <input type="range" class="editor-font-size" min="${SERVER_ACCESS_CONFIG.EDITOR.MIN_FONT_SIZE}" max="${SERVER_ACCESS_CONFIG.EDITOR.MAX_FONT_SIZE}" value="${SERVER_ACCESS_CONFIG.EDITOR.DEFAULT_FONT_SIZE}" style="width: 80px;">
+              <span class="font-size-value" style="font-size: 11px; color: #666; min-width: 35px;">${SERVER_ACCESS_CONFIG.EDITOR.DEFAULT_FONT_SIZE}px</span>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="save-indicator" style="font-size: 11px; font-weight: 600;">● Saved</span>
+              <span class="editor-status" style="font-size: 11px; color: #666;"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="monaco-editor-instance" style="width: 100%; height: calc(100% - 45px);"></div>
+    </div>
+    
+    <style>
+      .monaco-editor-container {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .monaco-editor-container:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      }
+      .editor-toolbar button {
+        transition: all 0.2s ease;
+      }
+      .editor-toolbar button:hover {
+        transform: translateY(-1px);
+      }
+      .editor-toolbar .save-indicator {
+        transition: color 0.3s ease;
+      }
+    </style>
+  `;
+}
+
+// Setup Frappe completions
+function setupFrappeCompletions() {
+	// JavaScript completions
+	monaco.languages.registerCompletionItemProvider('javascript', {
+		provideCompletionItems: (model, position) => {
+			const suggestions = [
+				{
+					label: 'frappe.call',
+					kind: monaco.languages.CompletionItemKind.Function,
+					insertText: `frappe.call({
+    method: '\${1:method_path}',
+    args: {
+        \${2:arg}: \${3:value}
+    },
+    freeze: \${4:true},
+    freeze_message: __('\${5:Processing...}'),
+    callback: function(r) {
+        if (r.exc) {
+            frappe.msgprint(__('Error: {0}', [r.exc]));
+            return;
+        }
+        \${6:// handle response}
+    }
+});`,
+					insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+					documentation: 'Make a server call with error handling'
+				},
+				{
+					label: 'frappe.msgprint',
+					kind: monaco.languages.CompletionItemKind.Function,
+					insertText: 'frappe.msgprint(__(\'${1:message}\'));',
+					insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+					documentation: 'Show a message to the user'
+				},
+				{
+					label: 'frappe.prompt',
+					kind: monaco.languages.CompletionItemKind.Function,
+					insertText: `frappe.prompt([
+    {
+        label: '\${1:Field Label}',
+        fieldname: '\${2:field_name}',
+        fieldtype: '\${3:Data}',
+        reqd: \${4:1}
+    }
+], (values) => {
+    \${5:// handle values}
+}, '\${6:Dialog Title}', '\${7:Submit}');`,
+					insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+					documentation: 'Show a prompt dialog'
+				},
+				{
+					label: 'frappe.show_alert',
+					kind: monaco.languages.CompletionItemKind.Function,
+					insertText: 'frappe.show_alert({message: __(\'${1:message}\'), indicator: \'${2:green}\'});',
+					insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+				},
+				{
+					label: 'frappe.db.get_value',
+					kind: monaco.languages.CompletionItemKind.Function,
+					insertText: `frappe.db.get_value('\${1:DocType}', '\${2:name}', '\${3:field}', (r) => {
+    \${4:// handle value}
+});`,
+					insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+				}
+			];
+
+			return { suggestions: suggestions };
+		}
+	});
+
+	// Python completions
+	monaco.languages.registerCompletionItemProvider('python', {
+		provideCompletionItems: (model, position) => {
+			const suggestions = [
+				{
+					label: 'frappe.get_doc',
+					kind: monaco.languages.CompletionItemKind.Function,
+					insertText: 'frappe.get_doc("${1:doctype}", "${2:name}")',
+					insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+					documentation: 'Get a document from the database'
+				},
+				{
+					label: '@frappe.whitelist()',
+					kind: monaco.languages.CompletionItemKind.Snippet,
+					insertText: `@frappe.whitelist()
+def \${1:function_name}(\${2:args}):
+    \${3:pass}`,
+					insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+					documentation: 'Whitelist a function for API access'
+				},
+				{
+					label: 'frappe.throw',
+					kind: monaco.languages.CompletionItemKind.Function,
+					insertText: 'frappe.throw(_("${1:Error message}"))',
+					insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+				},
+				{
+					label: 'frappe.msgprint',
+					kind: monaco.languages.CompletionItemKind.Function,
+					insertText: 'frappe.msgprint(_("${1:message}"))',
+					insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+				}
+			];
+
+			return { suggestions: suggestions };
+		}
+	});
+}
+
+// Main form script
+frappe.ui.form.on('Server Access', {
+	refresh(frm) {
+		// Add separate custom buttons (not under Actions)
+		frm.add_custom_button('🔄 Reload Files', () => loadFiles(frm));
+		frm.add_custom_button('💾 Save File', () => saveFile(frm));
+		frm.add_custom_button('📝 Code Editor', () => openInCodeEditor(frm));
+		frm.add_custom_button('⌨️ Shortcuts', () => {
+			frappe.msgprint(`
+        <h4>Keyboard Shortcuts</h4>
+        <ul>
+          <li><b>Ctrl/Cmd + S</b> - Save file</li>
+          <li><b>Ctrl/Cmd + F</b> - Find</li>
+          <li><b>Ctrl/Cmd + P</b> - Quick Open</li>
+          <li><b>Shift + Alt + F</b> - Format Document</li>
+          <li><b>F1</b> - Command Palette</li>
+          <li><b>F11</b> - Toggle Fullscreen</li>
+          <li><b>ESC</b> - Exit Fullscreen</li>
+        </ul>
+      `, __('Keyboard Shortcuts'));
+		});
+
+		// Initialize editor HTML
+		if (frm.fields_dict.code_editor_html) {
+			frm.fields_dict.code_editor_html.$wrapper.html(createEditorHTML());
+
+			// Restore preferences
+			const savedTheme = localStorage.getItem('server_access_theme') || SERVER_ACCESS_CONFIG.EDITOR.THEMES.LIGHT;
+			frm.fields_dict.code_editor_html.$wrapper.find('.editor-theme-select').val(savedTheme);
+
+			const savedFontSize = localStorage.getItem('server_access_font_size') || SERVER_ACCESS_CONFIG.EDITOR.DEFAULT_FONT_SIZE;
+			frm.fields_dict.code_editor_html.$wrapper.find('.editor-font-size').val(savedFontSize);
+			frm.fields_dict.code_editor_html.$wrapper.find('.font-size-value').text(savedFontSize + 'px');
+		}
+
+		setEditorMode(frm);
+
+		// Check for unsaved changes
+		if (editorState.isDirty) {
+			frappe.confirm(
+				__('You have unsaved changes. Do you want to save them?'),
+				() => saveFile(frm),
+				() => { }
+			);
+		}
+	},
+
+	target_doctype(frm) {
+		editorState.currentFile = null;
+		loadFiles(frm);
+	},
+
+	filename(frm) {
+		if (!frm.doc.filename) return;
+		loadFileContent(frm);
+		setEditorMode(frm);
+	}
+});

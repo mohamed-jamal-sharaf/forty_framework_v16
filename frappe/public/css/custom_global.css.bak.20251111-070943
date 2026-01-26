@@ -1,0 +1,17 @@
+/* ================================================
+   Global Font: Almarai Regular
+   ================================================ */
+
+@font-face {
+  font-family: 'Almarai';
+  src: url('/files/Almarai-Regular.ttf') format('truetype');
+  font-weight: Light;
+  font-style: Light;
+}
+
+/* Apply globally */
+html, body, * {
+  font-family: 'Almarai', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+  font-weight: Light !important;
+}
+

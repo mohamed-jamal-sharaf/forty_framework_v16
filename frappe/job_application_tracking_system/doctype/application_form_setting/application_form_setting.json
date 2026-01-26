@@ -1,0 +1,156 @@
+{
+ "actions": [],
+ "creation": "2025-09-08 16:10:29.850248",
+ "default_view": "List",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "main_details_tab",
+  "status_banner_html",
+  "section_break_xrqz",
+  "specific_for_project",
+  "column_break_mpvf",
+  "multi_projects",
+  "column_break_dcxk",
+  "internal_project_number",
+  "section_break_zcuj",
+  "project_number_table",
+  "section_break_aift",
+  "start_the_job_application_form",
+  "column_break_ejyp",
+  "stop_the_job_application_form",
+  "section_break_quxq",
+  "activity_log",
+  "report_tab",
+  "report__html"
+ ],
+ "fields": [
+  {
+   "fieldname": "main_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Main Details"
+  },
+  {
+   "fieldname": "status_banner_html",
+   "fieldtype": "HTML",
+   "label": "Status Banner HTML"
+  },
+  {
+   "fieldname": "section_break_xrqz",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "* It is project specific ?",
+   "fieldname": "specific_for_project",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Specific for Project / Proposal",
+   "options": "\nYes\nNo",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_mpvf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "multi_projects",
+   "fieldtype": "Select",
+   "label": "Multi Projects / Proposals",
+   "options": "\nNominated Project / Proposal\nMulti Projects / Proposals"
+  },
+  {
+   "fieldname": "column_break_dcxk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "internal_project_number",
+   "fieldtype": "Int",
+   "label": "Internal Project / Proposal Number"
+  },
+  {
+   "fieldname": "section_break_zcuj",
+   "fieldtype": "Section Break",
+   "label": "Projects / Proposals Numbers"
+  },
+  {
+   "fieldname": "project_number_table",
+   "fieldtype": "Table",
+   "label": "Projects / Proposals Numbers",
+   "options": "Project Number Table"
+  },
+  {
+   "fieldname": "section_break_aift",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "start_the_job_application_form",
+   "fieldtype": "Button",
+   "label": "Start The Job Application Form"
+  },
+  {
+   "fieldname": "stop_the_job_application_form",
+   "fieldtype": "Button",
+   "label": "Stop The Job Application Form"
+  },
+  {
+   "fieldname": "section_break_quxq",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "activity_log",
+   "fieldtype": "Table",
+   "label": "Application Form Activity Log",
+   "options": "Application Form Activity Log"
+  },
+  {
+   "fieldname": "column_break_ejyp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "report_tab",
+   "fieldtype": "Tab Break",
+   "label": "Report"
+  },
+  {
+   "fieldname": "report__html",
+   "fieldtype": "HTML",
+   "label": "Report  HTML"
+  }
+ ],
+ "grid_page_length": 50,
+ "hide_toolbar": 1,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-09-08 17:11:47.719355",
+ "modified_by": "Administrator",
+ "module": "Job Application Tracking System",
+ "name": "APPLICATION FORM SETTING",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "All",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

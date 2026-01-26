@@ -1,0 +1,213 @@
+let __xterm_loaded = false;
+let __term, __fitAddon;
+let __sid = null;
+
+frappe.ui.form.on('Server Access', {
+  refresh(frm) {
+    // أزرار التيرمنال
+    frm.add_custom_button(__('Open Terminal'), () => openTerminal(frm), 'Terminal');
+    frm.add_custom_button(__('Disconnect'), () => disconnectTerminal(frm), 'Terminal');
+
+    // محرر الملفات (موجود قبل كده)
+    frm.add_custom_button(__('Load Files'), () => loadFiles(frm), 'File Tools');
+    frm.add_custom_button(__('Save File'), () => saveFile(frm), 'File Tools');
+
+    // تجهيز حاوية التيرمنال
+    ensureTerminalContainer(frm);
+  },
+
+  filename(frm) {
+    if (!frm.doc.filename) return;
+    loadFileContent(frm);
+  }
+});
+
+// ========== Terminal Frontend ==========
+
+function ensureTerminalContainer(frm) {
+  const wrapper = frm.get_field('terminal_html');
+  if (!wrapper) return;
+  if (!wrapper.$wrapper) return;
+  // حاوية نظيفة
+  wrapper.$wrapper.empty().css({padding: 0});
+  const div = $(`<div id="sa-term" style="height:420px; border:1px solid var(--border-color); border-radius:8px; overflow:hidden;"></div>`);
+  wrapper.$wrapper.append(div);
+}
+
+function loadXtermAssets() {
+  return new Promise((resolve) => {
+    if (__xterm_loaded) return resolve();
+
+    // CSS
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/xterm@5.3.0/css/xterm.css';
+    document.head.appendChild(link);
+
+    // JS
+    const s1 = document.createElement('script');
+    s1.src = 'https://unpkg.com/xterm@5.3.0/lib/xterm.js';
+    s1.onload = () => {
+      const s2 = document.createElement('script');
+      s2.src = 'https://unpkg.com/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js';
+      s2.onload = () => {
+        __xterm_loaded = true;
+        resolve();
+      };
+      document.body.appendChild(s2);
+    };
+    document.body.appendChild(s1);
+  });
+}
+
+async function openTerminal(frm) {
+  if (!frm.doc.ssh_host || !frm.doc.ssh_user) {
+    frappe.msgprint(__('Please enter SSH Host and User'));
+    return;
+  }
+  await loadXtermAssets();
+  const el = document.getElementById('sa-term');
+  if (!el) {
+    frappe.msgprint(__('Terminal container not found.'));
+    return;
+  }
+  // init xterm
+  if (__term) { try { __term.dispose(); } catch(e) {} }
+  __fitAddon = new window.FitAddon.FitAddon();
+  __term = new window.Terminal({convertEol: true, cursorBlink: true, fontFamily: 'ui-monospace, monospace', fontSize: 13});
+  __term.loadAddon(__fitAddon);
+  __term.open(el);
+  __fitAddon.fit();
+
+  __term.write('Connecting...\r\n');
+
+  // اشتراك في الريaltime
+  frappe.realtime.on('server_access_terminal', (msg) => {
+    if (!msg || msg.sid !== __sid) return;
+    if (msg.data) __term.write(msg.data);
+  });
+
+  // إنشاء جلسة
+  frappe.call({
+    method: "frappe.core.doctype.server_access.server_access.terminal_start",
+    freeze: true,
+    args: {
+      host: frm.doc.ssh_host,
+      port: frm.doc.ssh_port || 22,
+      username: frm.doc.ssh_user,
+      auth_type: frm.doc.ssh_auth_type || "Password",
+      password: frm.doc.ssh_password || "",
+      private_key: frm.doc.ssh_private_key || "",
+      passphrase: frm.doc.ssh_key_passphrase || "",
+      rows: 24, cols: 80
+    },
+    callback: (r) => {
+      __sid = r.message;
+      __term.focus();
+
+      // إرسال المدخلات
+      __term.onData((data) => {
+        // ممكن جمع البيانات في بافر لو عايز تقلل المكالمات
+        frappe.call({
+          method: "frappe.core.doctype.server_access.server_access.terminal_send",
+          args: { sid: __sid, data }
+        });
+      });
+
+      // تغيير الحجم
+      window.addEventListener('resize', () => {
+        try {
+          __fitAddon.fit();
+          const dims = __term._core._renderService.dimensions;
+          frappe.call({
+            method: "frappe.core.doctype.server_access.server_access.terminal_resize",
+            args: { sid: __sid, cols: __term.cols, rows: __term.rows }
+          });
+        } catch(e) {}
+      });
+
+      // إرسال أول Resize
+      frappe.call({
+        method: "frappe.core.doctype.server_access.server_access.terminal_resize",
+        args: { sid: __sid, cols: __term.cols, rows: __term.rows }
+      });
+    },
+    error: () => {
+      __term && __term.write('\r\nConnection failed.\r\n');
+    }
+  });
+}
+
+function disconnectTerminal(frm) {
+  if (!__sid) return;
+  frappe.call({
+    method: "frappe.core.doctype.server_access.server_access.terminal_close",
+    args: { sid: __sid },
+    callback: () => {
+      __sid = null;
+      if (__term) { __term.write('\r\n[Disconnected]\r\n'); }
+    }
+  });
+}
+
+// ========== File editor helpers already used ==========
+
+function loadFiles(frm) {
+  if (!frm.doc.target_doctype) {
+    frappe.msgprint(__('Select Target DocType first.'));
+    return;
+  }
+  frappe.call({
+    method: "frappe.core.doctype.server_access.server_access.list_doctype_files",
+    args: { target_doctype: frm.doc.target_doctype },
+    callback: r => {
+      const files = r.message || [];
+      frm.set_df_property('filename', 'options', files.join('\n'));
+      if (files.length) {
+        frm.set_value('filename', files[0]);
+        loadFileContent(frm);
+      } else {
+        frm.set_value('filename', null);
+        frm.set_value('file_content', '');
+        frm.set_value('last_op_log', __('No editable files found.'));
+      }
+    }
+  });
+}
+
+function loadFileContent(frm) {
+  if (!frm.doc.target_doctype || !frm.doc.filename) return;
+  frappe.call({
+    method: "frappe.core.doctype.server_access.server_access.read_doctype_file",
+    args: {
+      target_doctype: frm.doc.target_doctype,
+      filename: frm.doc.filename
+    },
+    callback: r => {
+      frm.set_value('file_content', r.message || '');
+      frm.set_value('last_op_log', __('Loaded ') + frm.doc.filename);
+    }
+  });
+}
+
+function saveFile(frm) {
+  if (!frm.doc.target_doctype || !frm.doc.filename) {
+    frappe.msgprint(__('Choose DocType and File first.'));
+    return;
+  }
+  frappe.call({
+    method: "frappe.core.doctype.server_access.server_access.save_doctype_file",
+    args: {
+      target_doctype: frm.doc.target_doctype,
+      filename: frm.doc.filename,
+      content: frm.doc.file_content || ''
+    },
+    callback: r => {
+      frm.set_value('last_op_log', r.message || 'Saved');
+      frappe.show_alert({message: __('Saved'), indicator: 'green'});
+    },
+    error: () => {
+      frappe.show_alert({message: __('Save failed'), indicator: 'red'});
+    }
+  });
+}

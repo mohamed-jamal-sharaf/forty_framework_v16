@@ -1,0 +1,602 @@
+frappe.ui.form.on('Job Application Dashboard', {
+    refresh: function(frm) {
+        // Initialize the dashboard
+        frm.trigger('init_dashboard');
+        
+        // Add custom buttons
+        frm.add_custom_button(__('Refresh Dashboard'), function() {
+            frappe.show_alert({message: 'Refreshing dashboard...', indicator: 'blue'});
+            frm.trigger('load_dashboard');
+        });
+        
+        frm.add_custom_button(__('Export Data'), function() {
+            frm.trigger('export_dashboard_data');
+        });
+    },
+    
+    onload: function(frm) {
+        // Initialize date filters if not set
+        if (!frm.doc.from_date) {
+            frm.set_value('from_date', frappe.datetime.add_months(frappe.datetime.get_today(), -1));
+        }
+        if (!frm.doc.to_date) {
+            frm.set_value('to_date', frappe.datetime.get_today());
+        }
+    },
+    
+    init_dashboard: function(frm) {
+        // Clear the HTML field
+        $(frm.fields_dict.dashboard_html.wrapper).empty();
+        
+        // Create main container
+        frm.dashboard_container = $(`
+            <div class="job-application-dashboard">
+                <div class="text-center" style="padding: 50px;">
+                    <i class="fa fa-spinner fa-spin" style="font-size: 30px; color: #5e64ff;"></i>
+                    <p style="margin-top: 10px; color: #6c757d;">Loading dashboard data...</p>
+                </div>
+            </div>
+        `).appendTo(frm.fields_dict.dashboard_html.wrapper);
+        
+        // Load the dashboard data
+        frm.trigger('load_dashboard');
+    },
+    
+    from_date: function(frm) {
+        frm.trigger('load_dashboard');
+    },
+    
+    to_date: function(frm) {
+        frm.trigger('load_dashboard');
+    },
+    
+    load_dashboard: function(frm) {
+        // Build filters
+        const filters = {};
+        if (frm.doc.from_date && frm.doc.to_date) {
+            filters.creation = ['between', [frm.doc.from_date, frm.doc.to_date]];
+        }
+        
+        // Fetch data
+        frappe.call({
+            method: 'frappe.client.get_list',
+            args: {
+                doctype: 'Job Application Form',
+                fields: ['*'],
+                filters: filters,
+                limit_page_length: 5000
+            },
+            callback: function(r) {
+                if (r.message && r.message.length > 0) {
+                    // Process and render dashboard
+                    const applications = r.message;
+                    const stats = calculateStatistics(applications);
+                    renderDashboard(frm, applications, stats);
+                } else {
+                    // Show empty state
+                    frm.dashboard_container.html(`
+                        <div class="text-center" style="padding: 50px;">
+                            <i class="fa fa-inbox" style="font-size: 50px; color: #6c757d;"></i>
+                            <p style="margin-top: 10px; color: #6c757d;">No applications found for the selected period.</p>
+                        </div>
+                    `);
+                }
+            },
+            error: function(err) {
+                console.error('Dashboard Error:', err);
+                frm.dashboard_container.html(`
+                    <div class="text-center" style="padding: 50px;">
+                        <i class="fa fa-exclamation-triangle" style="font-size: 50px; color: #dc3545;"></i>
+                        <p style="margin-top: 10px; color: #dc3545;">Error loading dashboard data.</p>
+                        <p style="color: #6c757d;">${err.message || 'Please try again later.'}</p>
+                    </div>
+                `);
+            }
+        });
+    },
+    
+    export_dashboard_data: function(frm) {
+        frappe.call({
+            method: 'frappe.client.get_list',
+            args: {
+                doctype: 'Job Application Form',
+                fields: ['*'],
+                limit_page_length: 5000
+            },
+            callback: function(r) {
+                if (r.message && r.message.length > 0) {
+                    downloadCSV(r.message);
+                    frappe.show_alert({
+                        message: 'Data exported successfully!',
+                        indicator: 'green'
+                    });
+                } else {
+                    frappe.show_alert({
+                        message: 'No data to export',
+                        indicator: 'orange'
+                    });
+                }
+            }
+        });
+    }
+});
+
+// Helper function to calculate statistics
+function calculateStatistics(applications) {
+    const stats = {
+        total: applications.length,
+        thisMonth: 0,
+        avgExperience: 0,
+        willingToRelocate: 0,
+        departments: {},
+        positions: {},
+        employmentTypes: {},
+        availability: {},
+        education: {},
+        experienceRanges: {
+            '0-2 years': 0,
+            '3-5 years': 0,
+            '6-10 years': 0,
+            '10+ years': 0
+        }
+    };
+    
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    let totalExperience = 0;
+    let relocateCount = 0;
+    
+    applications.forEach(app => {
+        // Monthly count
+        const appDate = new Date(app.creation);
+        if (appDate.getMonth() === currentMonth && appDate.getFullYear() === currentYear) {
+            stats.thisMonth++;
+        }
+        
+        // Department distribution
+        if (app.department) {
+            stats.departments[app.department] = (stats.departments[app.department] || 0) + 1;
+        }
+        
+        // Position distribution
+        if (app.job_position) {
+            stats.positions[app.job_position] = (stats.positions[app.job_position] || 0) + 1;
+        }
+        
+        // Employment type
+        if (app.employment_type) {
+            stats.employmentTypes[app.employment_type] = (stats.employmentTypes[app.employment_type] || 0) + 1;
+        }
+        
+        // Availability
+        if (app.availability) {
+            stats.availability[app.availability] = (stats.availability[app.availability] || 0) + 1;
+        }
+        
+        // Education
+        if (app.highest_degree) {
+            stats.education[app.highest_degree] = (stats.education[app.highest_degree] || 0) + 1;
+        }
+        
+        // Experience
+        if (app.years_of_experience !== undefined && app.years_of_experience !== null) {
+            const exp = parseInt(app.years_of_experience) || 0;
+            totalExperience += exp;
+            
+            if (exp <= 2) {
+                stats.experienceRanges['0-2 years']++;
+            } else if (exp <= 5) {
+                stats.experienceRanges['3-5 years']++;
+            } else if (exp <= 10) {
+                stats.experienceRanges['6-10 years']++;
+            } else {
+                stats.experienceRanges['10+ years']++;
+            }
+        }
+        
+        // Relocation
+        if (app.are_you_willing_to_relocate_for_projects === 'Yes') {
+            relocateCount++;
+        }
+    });
+    
+    stats.avgExperience = applications.length > 0 ? totalExperience / applications.length : 0;
+    stats.willingToRelocate = applications.length > 0 ? Math.round((relocateCount / applications.length) * 100) : 0;
+    
+    return stats;
+}
+
+// Main render function
+function renderDashboard(frm, applications, stats) {
+    const dashboardHTML = `
+        <div class="dashboard-content" style="padding: 15px;">
+            <!-- Dashboard Header -->
+            <div class="dashboard-header row" style="margin-bottom: 20px;">
+                <div class="col-md-8">
+                    <h3 style="margin: 0; color: #2c3e50;">Job Application Analytics</h3>
+                    <p style="color: #7f8c8d; margin: 5px 0;">
+                        ${frm.doc.from_date ? `From ${frappe.datetime.str_to_user(frm.doc.from_date)}` : 'All time'} 
+                        ${frm.doc.to_date ? `to ${frappe.datetime.str_to_user(frm.doc.to_date)}` : ''}
+                    </p>
+                </div>
+                <div class="col-md-4 text-right">
+                    <small class="text-muted">Last updated: ${moment().format('DD MMM YYYY, h:mm A')}</small>
+                </div>
+            </div>
+            
+            <!-- KPI Cards Row -->
+            <div class="row kpi-cards" style="margin-bottom: 30px;">
+                <div class="col-lg-3 col-md-6" style="margin-bottom: 15px;">
+                    <div class="kpi-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                        padding: 20px; border-radius: 10px; color: white; height: 100%;">
+                        <div class="kpi-icon" style="float: right; font-size: 40px; opacity: 0.3;">
+                            <i class="fa fa-users"></i>
+                        </div>
+                        <div class="kpi-value" style="font-size: 32px; font-weight: bold; margin: 10px 0;">
+                            ${stats.total}
+                        </div>
+                        <div class="kpi-label" style="font-size: 14px; opacity: 0.9;">
+                            Total Applications
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3 col-md-6" style="margin-bottom: 15px;">
+                    <div class="kpi-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                        padding: 20px; border-radius: 10px; color: white; height: 100%;">
+                        <div class="kpi-icon" style="float: right; font-size: 40px; opacity: 0.3;">
+                            <i class="fa fa-calendar"></i>
+                        </div>
+                        <div class="kpi-value" style="font-size: 32px; font-weight: bold; margin: 10px 0;">
+                            ${stats.thisMonth}
+                        </div>
+                        <div class="kpi-label" style="font-size: 14px; opacity: 0.9;">
+                            This Month
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3 col-md-6" style="margin-bottom: 15px;">
+                    <div class="kpi-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+                        padding: 20px; border-radius: 10px; color: white; height: 100%;">
+                        <div class="kpi-icon" style="float: right; font-size: 40px; opacity: 0.3;">
+                            <i class="fa fa-briefcase"></i>
+                        </div>
+                        <div class="kpi-value" style="font-size: 32px; font-weight: bold; margin: 10px 0;">
+                            ${stats.avgExperience.toFixed(1)}
+                        </div>
+                        <div class="kpi-label" style="font-size: 14px; opacity: 0.9;">
+                            Avg. Experience (Years)
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3 col-md-6" style="margin-bottom: 15px;">
+                    <div class="kpi-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); 
+                        padding: 20px; border-radius: 10px; color: white; height: 100%;">
+                        <div class="kpi-icon" style="float: right; font-size: 40px; opacity: 0.3;">
+                            <i class="fa fa-map-marker"></i>
+                        </div>
+                        <div class="kpi-value" style="font-size: 32px; font-weight: bold; margin: 10px 0;">
+                            ${stats.willingToRelocate}%
+                        </div>
+                        <div class="kpi-label" style="font-size: 14px; opacity: 0.9;">
+                            Open to Relocation
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Charts Row -->
+            <div class="row charts-section">
+                <!-- Department Distribution -->
+                <div class="col-md-6" style="margin-bottom: 20px;">
+                    <div class="chart-card" style="background: white; padding: 20px; border-radius: 10px; 
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+                        <h5 style="margin-bottom: 20px; color: #2c3e50;">Applications by Department</h5>
+                        <div id="department-chart" style="height: 300px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Position Distribution -->
+                <div class="col-md-6" style="margin-bottom: 20px;">
+                    <div class="chart-card" style="background: white; padding: 20px; border-radius: 10px; 
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+                        <h5 style="margin-bottom: 20px; color: #2c3e50;">Top 10 Positions</h5>
+                        <div id="position-chart" style="height: 300px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Employment Type -->
+                <div class="col-md-4" style="margin-bottom: 20px;">
+                    <div class="chart-card" style="background: white; padding: 20px; border-radius: 10px; 
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+                        <h5 style="margin-bottom: 20px; color: #2c3e50;">Employment Type</h5>
+                        <div id="employment-type-chart" style="height: 250px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Availability -->
+                <div class="col-md-4" style="margin-bottom: 20px;">
+                    <div class="chart-card" style="background: white; padding: 20px; border-radius: 10px; 
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+                        <h5 style="margin-bottom: 20px; color: #2c3e50;">Availability Timeline</h5>
+                        <div id="availability-chart" style="height: 250px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Education Level -->
+                <div class="col-md-4" style="margin-bottom: 20px;">
+                    <div class="chart-card" style="background: white; padding: 20px; border-radius: 10px; 
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+                        <h5 style="margin-bottom: 20px; color: #2c3e50;">Education Levels</h5>
+                        <div id="education-chart" style="height: 250px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Experience Distribution -->
+                <div class="col-md-12" style="margin-bottom: 20px;">
+                    <div class="chart-card" style="background: white; padding: 20px; border-radius: 10px; 
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+                        <h5 style="margin-bottom: 20px; color: #2c3e50;">Experience Distribution</h5>
+                        <div id="experience-chart" style="height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Applications Table -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="table-card" style="background: white; padding: 20px; border-radius: 10px; 
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+                        <div class="table-header" style="display: flex; justify-content: space-between; 
+                            align-items: center; margin-bottom: 20px;">
+                            <h5 style="margin: 0; color: #2c3e50;">Recent Applications</h5>
+                            <input type="text" id="table-search" class="form-control" 
+                                placeholder="Search applications..." 
+                                style="width: 300px; border-radius: 20px;">
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="applications-table">
+                                <thead>
+                                    <tr>
+                                        <th>Applicant</th>
+                                        <th>Position</th>
+                                        <th>Department</th>
+                                        <th>Experience</th>
+                                        <th>Education</th>
+                                        <th>Expected Salary</th>
+                                        <th>Applied On</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${generateTableRows(applications)}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Update the container
+    frm.dashboard_container.html(dashboardHTML);
+    
+    // Render charts after DOM update
+    setTimeout(() => {
+        renderCharts(stats);
+        setupEventListeners();
+    }, 100);
+}
+
+// Generate table rows
+function generateTableRows(applications) {
+    const recent = applications
+        .sort((a, b) => new Date(b.creation) - new Date(a.creation))
+        .slice(0, 15);
+    
+    return recent.map(app => `
+        <tr>
+            <td>
+                <div><strong>${app.full_name || 'N/A'}</strong></div>
+                <small class="text-muted">${app.email || ''}</small>
+            </td>
+            <td>${app.job_position || 'N/A'}</td>
+            <td>
+                <span class="badge badge-primary" style="background: #5470c6;">
+                    ${app.department || 'N/A'}
+                </span>
+            </td>
+            <td>${app.years_of_experience || 0} years</td>
+            <td>${app.highest_degree || 'N/A'}</td>
+            <td>${app.expected_salary ? frappe.format(app.expected_salary, {fieldtype: 'Currency'}) : 'Not specified'}</td>
+            <td>${frappe.datetime.str_to_user(app.creation)}</td>
+        </tr>
+    `).join('');
+}
+
+// Render all charts
+function renderCharts(stats) {
+    // Department Chart
+    const deptData = Object.entries(stats.departments)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+    
+    if (deptData.length > 0 && $('#department-chart').length) {
+        new frappe.Chart('#department-chart', {
+            data: {
+                labels: deptData.map(d => d.name),
+                datasets: [{
+                    values: deptData.map(d => d.value)
+                }]
+            },
+            type: 'pie',
+            height: 280,
+            colors: ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
+        });
+    }
+    
+    // Position Chart
+    const positionData = Object.entries(stats.positions)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+    
+    if (positionData.length > 0 && $('#position-chart').length) {
+        new frappe.Chart('#position-chart', {
+            data: {
+                labels: positionData.map(d => d.name.substring(0, 20) + (d.name.length > 20 ? '...' : '')),
+                datasets: [{
+                    values: positionData.map(d => d.value)
+                }]
+            },
+            type: 'bar',
+            height: 280,
+            colors: ['#5470c6']
+        });
+    }
+    
+    // Employment Type Chart
+    const empData = Object.entries(stats.employmentTypes)
+        .map(([name, value]) => ({ name, value }));
+    
+    if (empData.length > 0 && $('#employment-type-chart').length) {
+        new frappe.Chart('#employment-type-chart', {
+            data: {
+                labels: empData.map(d => d.name),
+                datasets: [{
+                    values: empData.map(d => d.value)
+                }]
+            },
+            type: 'donut',
+            height: 230,
+            colors: ['#667eea', '#764ba2', '#f093fb', '#f5576c']
+        });
+    }
+    
+    // Availability Chart
+    const availData = Object.entries(stats.availability)
+        .map(([name, value]) => ({ name, value }));
+    
+    if (availData.length > 0 && $('#availability-chart').length) {
+        new frappe.Chart('#availability-chart', {
+            data: {
+                labels: availData.map(d => d.name),
+                datasets: [{
+                    values: availData.map(d => d.value)
+                }]
+            },
+            type: 'percentage',
+            height: 230,
+            colors: ['#4facfe', '#00f2fe', '#43e97b', '#38f9d7']
+        });
+    }
+    
+    // Education Chart
+    const eduData = Object.entries(stats.education)
+        .map(([name, value]) => ({ name, value }));
+    
+    if (eduData.length > 0 && $('#education-chart').length) {
+        new frappe.Chart('#education-chart', {
+            data: {
+                labels: eduData.map(d => d.name),
+                datasets: [{
+                    values: eduData.map(d => d.value)
+                }]
+            },
+            type: 'percentage',
+            height: 230,
+            colors: ['#fa709a', '#fee140', '#30cfd0', '#a8edea']
+        });
+    }
+    
+    // Experience Chart
+    const expData = Object.entries(stats.experienceRanges)
+        .map(([name, value]) => ({ name, value }));
+    
+    if (expData.length > 0 && $('#experience-chart').length) {
+        new frappe.Chart('#experience-chart', {
+            data: {
+                labels: expData.map(d => d.name),
+                datasets: [{
+                    name: 'Candidates',
+                    values: expData.map(d => d.value)
+                }]
+            },
+            type: 'bar',
+            height: 230,
+            colors: ['#667eea'],
+            axisOptions: {
+                xAxisMode: 'tick'
+            }
+        });
+    }
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Table search functionality
+    $('#table-search').off('keyup').on('keyup', function() {
+        const searchTerm = $(this).val().toLowerCase();
+        $('#applications-table tbody tr').each(function() {
+            const text = $(this).text().toLowerCase();
+            $(this).toggle(text.includes(searchTerm));
+        });
+    });
+}
+
+// Export to CSV helper
+function downloadCSV(applications) {
+    // Prepare CSV headers
+    const headers = [
+        'Full Name',
+        'Email',
+        'Phone',
+        'Position',
+        'Department',
+        'Years of Experience',
+        'Education',
+        'Expected Salary',
+        'Current Salary',
+        'Nationality',
+        'Country',
+        'City',
+        'Willing to Relocate',
+        'Available to Join',
+        'Application Date'
+    ];
+    
+    // Prepare CSV rows
+    const rows = applications.map(app => [
+        app.full_name || '',
+        app.email || '',
+        app.phone_number || '',
+        app.job_position || '',
+        app.department || '',
+        app.years_of_experience || '0',
+        app.highest_degree || '',
+        app.expected_salary || '',
+        app.current_salary || '',
+        app.nationality || '',
+        app.country || '',
+        app.city || '',
+        app.are_you_willing_to_relocate_for_projects || '',
+        app.availability || '',
+        frappe.datetime.str_to_user(app.creation)
+    ]);
+    
+    // Convert to CSV format
+    const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `job_applications_${frappe.datetime.nowdate()}.csv`;
+    link.click();
+}

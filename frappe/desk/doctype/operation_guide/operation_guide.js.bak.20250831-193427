@@ -1,0 +1,3500 @@
+class NotionOperationGuideManager {
+    constructor(frm) {
+        this.frm = frm;
+        this.blocks = [];
+        this.searchTerm = '';
+        this.savedSelection = null; // Store selection for dropdowns
+        
+        // Make instance globally available immediately
+        window.notionGuide = this;
+        
+        // Bind methods for compatibility
+        var self = this;
+        this.handleAddBlock = function() { self.handleAddBlock.apply(self, arguments); };
+        this.handleSearch = function(e) { self.handleSearch.call(self, e); };
+        this.handleDragStart = function(e) { self.handleDragStart.call(self, e); };
+        this.handleDragOver = function(e) { self.handleDragOver.call(self, e); };
+        this.handleDrop = function(e) { self.handleDrop.call(self, e); };
+        
+        this.init();
+    }
+
+    saveSelection() {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            this.savedSelection = selection.getRangeAt(0);
+        }
+    }
+
+    restoreSelection() {
+        if (this.savedSelection) {
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(this.savedSelection);
+        }
+    }
+
+    init() {
+        if (!this.frm.doc.__islocal) {
+            this.renderNotionUI();
+            this.loadExistingBlocks();
+        } else {
+            this.renderSaveMessage();
+        }
+    }
+
+    renderSaveMessage() {
+        const wrapper = this.frm.fields_dict.operation_guide_contant.$wrapper;
+        wrapper.html(`
+            <div class="notion-save-message">
+                <div class="save-message-content">
+                    <i class="fa fa-calendar-o" style="font-size: 48px; color: #0d6efd; margin-bottom: 20px;"></i>
+                    <h4>Ready to create your guide?</h4>
+                    <p>Save the document to unlock the enhanced editor</p>
+                    <button class="btn btn-primary btn-lg" onclick="cur_frm.save()">
+                        <i class="fa fa-save"></i> Save & Start Editing
+                    </button>
+                </div>
+            </div>
+        `);
+        
+        this.addNotionStyles();
+    }
+
+    renderNotionUI() {
+        const wrapper = this.frm.fields_dict.operation_guide_contant.$wrapper;
+        wrapper.html(`
+            <div id="notion_guide_container" class="notion-container">
+                <!-- Header -->
+                <div class="notion-header">
+                    <div class="notion-header-left">
+                        <div class="notion-breadcrumb">
+                            <span>${frappe.utils.escape_html(this.frm.doc.operation_guide_title || 'Untitled')}</span>
+                        </div>
+                    </div>
+                    <div class="notion-header-center">
+                        <div class="notion-search-box">
+                            <i class="fa fa-search"></i>
+                            <input type="text" 
+                                   id="notion_search" 
+                                   placeholder="Search blocks..." 
+                                   class="form-control notion-search">
+                        </div>
+                    </div>
+                    <div class="notion-header-right">
+                        <button class="btn btn-primary btn-sm" onclick="window.notionGuide.exportToPDF()">
+                            <i class="fa fa-file-pdf-o"></i> Export PDF
+                        </button>
+                    </div>
+                </div>
+
+                <div id="notion_formatting_toolbar" class="notion-formatting-toolbar" style="display: none;">
+                    <div class="formatting-group">
+                        <button class="format-btn" onclick="window.formatNotionText('bold')" title="Bold (Ctrl+B)">
+                            <i class="fa fa-bold"></i>
+                        </button>
+                        <button class="format-btn" onclick="window.formatNotionText('italic')" title="Italic (Ctrl+I)">
+                            <i class="fa fa-italic"></i>
+                        </button>
+                        <button class="format-btn" onclick="window.formatNotionText('underline')" title="Underline (Ctrl+U)">
+                            <i class="fa fa-underline"></i>
+                        </button>
+                        <button class="format-btn" onclick="window.formatNotionText('strikeThrough')" title="Strikethrough">
+                            <i class="fa fa-strikethrough"></i>
+                        </button>
+                    </div>
+                    <div class="formatting-separator"></div>
+                    <div class="formatting-group">
+                        <button class="format-btn format-font-btn" onclick="window.showNotionFontMenu()" title="Font">
+                            <span class="font-label">Font</span>
+                            <i class="fa fa-caret-down"></i>
+                        </button>
+                        <button class="format-btn format-size-btn" onclick="window.showNotionSizeMenu()" title="Size">
+                            <span class="size-label">Size</span>
+                            <i class="fa fa-caret-down"></i>
+                        </button>
+                    </div>
+                    <div class="formatting-separator"></div>
+                    <div class="formatting-group">
+                        <input type="color" class="format-color" onchange="window.changeNotionColor(this.value)" title="Text Color">
+                        <button class="format-btn" onclick="window.showNotionHighlightColors()" title="Highlight">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                    </div>
+                    <div class="formatting-separator"></div>
+                    <div class="formatting-group">
+                        <button class="format-btn" onclick="window.formatNotionText('justifyLeft')" title="Align Left">
+                            <i class="fa fa-align-left"></i>
+                        </button>
+                        <button class="format-btn" onclick="window.formatNotionText('justifyCenter')" title="Center">
+                            <i class="fa fa-align-center"></i>
+                        </button>
+                        <button class="format-btn" onclick="window.formatNotionText('justifyRight')" title="Align Right">
+                            <i class="fa fa-align-right"></i>
+                        </button>
+                        <button class="format-btn" onclick="window.formatNotionText('justifyFull')" title="Justify">
+                            <i class="fa fa-align-justify"></i>
+                        </button>
+                    </div>
+                    <div class="formatting-separator"></div>
+                    <div class="formatting-group">
+                        <button class="format-btn" onclick="window.formatNotionText('insertOrderedList')" title="Numbered List">
+                            <i class="fa fa-list-ol"></i>
+                        </button>
+                        <button class="format-btn" onclick="window.formatNotionText('insertUnorderedList')" title="Bullet List">
+                            <i class="fa fa-list-ul"></i>
+                        </button>
+                        <button class="format-btn" onclick="window.insertNotionLink()" title="Insert Link">
+                            <i class="fa fa-link"></i>
+                        </button>
+                        <button class="format-btn" onclick="window.clearNotionFormatting()" title="Clear Formatting">
+                            <i class="fa fa-eraser"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Highlight Color Palette -->
+                <div id="notion_highlight_palette" class="notion-highlight-palette" style="display: none;">
+                    <div class="highlight-colors">
+                        <div class="highlight-color" style="background: transparent;" onclick="window.setNotionHighlight('')" title="No highlight"></div>
+                        <div class="highlight-color" style="background: #fef3c7;" onclick="window.setNotionHighlight('#fef3c7')" title="Yellow"></div>
+                        <div class="highlight-color" style="background: #fde68a;" onclick="window.setNotionHighlight('#fde68a')" title="Orange"></div>
+                        <div class="highlight-color" style="background: #d1fae5;" onclick="window.setNotionHighlight('#d1fae5')" title="Green"></div>
+                        <div class="highlight-color" style="background: #dbeafe;" onclick="window.setNotionHighlight('#dbeafe')" title="Blue"></div>
+                        <div class="highlight-color" style="background: #e9d5ff;" onclick="window.setNotionHighlight('#e9d5ff')" title="Purple"></div>
+                        <div class="highlight-color" style="background: #fce7f3;" onclick="window.setNotionHighlight('#fce7f3')" title="Pink"></div>
+                        <div class="highlight-color" style="background: #fee2e2;" onclick="window.setNotionHighlight('#fee2e2')" title="Red"></div>
+                    </div>
+                </div>
+
+                <!-- Font Menu -->
+                <div id="notion_font_menu" class="notion-dropdown-menu" style="display: none;">
+                    <div class="dropdown-item" onclick="window.applyNotionFont('Arial')">Arial</div>
+                    <div class="dropdown-item" onclick="window.applyNotionFont('Times New Roman')">Times New Roman</div>
+                    <div class="dropdown-item" onclick="window.applyNotionFont('Courier New')">Courier New</div>
+                    <div class="dropdown-item" onclick="window.applyNotionFont('Georgia')">Georgia</div>
+                    <div class="dropdown-item" onclick="window.applyNotionFont('Verdana')">Verdana</div>
+                    <div class="dropdown-item" onclick="window.applyNotionFont('Comic Sans MS')">Comic Sans MS</div>
+                    <div class="dropdown-item" onclick="window.applyNotionFont('Impact')">Impact</div>
+                    <div class="dropdown-item" onclick="window.applyNotionFont('Helvetica')">Helvetica</div>
+                </div>
+
+                <!-- Size Menu -->
+                <div id="notion_size_menu" class="notion-dropdown-menu" style="display: none;">
+                    <div class="dropdown-item" onclick="window.applyNotionSize('1')">Small (12px)</div>
+                    <div class="dropdown-item" onclick="window.applyNotionSize('2')">Normal (16px)</div>
+                    <div class="dropdown-item" onclick="window.applyNotionSize('3')">Medium (20px)</div>
+                    <div class="dropdown-item" onclick="window.applyNotionSize('4')">Large (24px)</div>
+                    <div class="dropdown-item" onclick="window.applyNotionSize('5')">Huge (32px)</div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="notion-content-wrapper">
+                    <!-- Editor Area -->
+                    <div class="notion-editor notion-editor-full">
+                        <div class="notion-page-header">
+                            <input type="text" 
+                                   class="notion-page-title" 
+                                   placeholder="Untitled" 
+                                   value="${frappe.utils.escape_html(this.frm.doc.operation_guide_title || '')}"
+                                   onchange="window.notionGuide.updateTitle(this.value)">
+                        </div>
+                        
+                        <div id="notion_blocks_container" class="notion-blocks-container">
+                            <!-- Blocks will be rendered here -->
+                        </div>
+                        
+                        <div id="notion_empty_state" class="notion-empty-state" style="display: none;">
+                            <i class="fa fa-file-text-o" style="font-size: 48px; opacity: 0.3;"></i>
+                            <p>Press the + button or click below to add content</p>
+                            <button class="btn btn-default" onclick="window.notionGuide.addNewBlock()">
+                                <i class="fa fa-plus"></i> Add a block
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Floating Add Button -->
+                <button class="notion-fab" onclick="window.notionGuide.showBlockMenu()" title="Add Block">
+                    <i class="fa fa-plus"></i>
+                </button>
+            </div>
+        `);
+
+        this.addNotionStyles();
+        this.bindEvents();
+    }
+
+    addNotionStyles() {
+        if (document.getElementById('notion-guide-styles')) return;
+        
+        const styles = `
+            <style id="notion-guide-styles">
+                /* Notion-like Styles */
+                .notion-container {
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+                    background: #ffffff;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                    min-height: 600px;
+                }
+
+                .notion-header {
+                    display: flex;
+                    align-items: center;
+                    padding: 12px 20px;
+                    border-bottom: 1px solid #e9e9e7;
+                    background: #fafafa;
+                    gap: 20px;
+                }
+
+                .notion-header-left,
+                .notion-header-right {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+
+                .notion-header-center {
+                    flex: 1;
+                    max-width: 400px;
+                }
+
+                .notion-breadcrumb {
+                    font-size: 14px;
+                    color: #787774;
+                }
+
+                .notion-search-box {
+                    position: relative;
+                }
+
+                .notion-search-box i {
+                    position: absolute;
+                    left: 12px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: #787774;
+                }
+
+                .notion-search {
+                    width: 100%;
+                    padding-left: 35px;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 6px;
+                    font-size: 14px;
+                }
+
+                .notion-search:focus {
+                    border-color: #2383e2;
+                    outline: none;
+                }
+
+                .notion-icon-btn {
+                    width: 32px;
+                    height: 32px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: none;
+                    border-radius: 6px;
+                    background: transparent;
+                    color: #787774;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .notion-icon-btn:hover {
+                    background: #f1f1ef;
+                    color: #37352f;
+                }
+
+                .notion-content-wrapper {
+                    display: flex;
+                    height: calc(100% - 60px);
+                }
+
+                .notion-sidebar {
+                    width: 240px;
+                    background: #f7f6f3;
+                    border-right: 1px solid #e9e9e7;
+                    padding: 20px;
+                    overflow-y: auto;
+                    transition: margin-left 0.3s;
+                }
+
+                .notion-sidebar.collapsed {
+                    margin-left: -240px;
+                }
+
+                .sidebar-section {
+                    margin-bottom: 30px;
+                }
+
+                .sidebar-title {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #787774;
+                    letter-spacing: 0.04em;
+                    margin-bottom: 12px;
+                }
+
+                .quick-add-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 8px;
+                }
+
+                .quick-add-btn {
+                    aspect-ratio: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 6px;
+                    background: white;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-size: 16px;
+                    color: #787774;
+                }
+
+                .quick-add-btn:hover {
+                    background: #f1f1ef;
+                    border-color: #37352f;
+                    color: #37352f;
+                }
+
+                .notion-outline {
+                    font-size: 14px;
+                }
+
+                .notion-outline-item {
+                    padding: 4px 0;
+                    cursor: pointer;
+                    color: #37352f;
+                    transition: color 0.2s;
+                }
+
+                .notion-outline-item:hover {
+                    color: #2383e2;
+                }
+
+                .notion-outline-item.level-2 {
+                    padding-left: 16px;
+                }
+
+                .notion-outline-item.level-3 {
+                    padding-left: 32px;
+                }
+
+                .notion-editor {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 40px 60px;
+                    max-width: 900px;
+                    margin: 0 auto;
+                    width: 100%;
+                }
+
+                .notion-editor-full {
+                    max-width: 1200px;
+                }
+
+                .notion-page-header {
+                    margin-bottom: 30px;
+                }
+
+                .notion-page-title {
+                    width: 100%;
+                    font-size: 40px;
+                    font-weight: 700;
+                    color: #37352f;
+                    border: none;
+                    outline: none;
+                    background: transparent;
+                    padding: 0;
+                    line-height: 1.2;
+                }
+
+                .notion-page-title::placeholder {
+                    color: #e9e9e7;
+                }
+
+                .notion-blocks-container {
+                    min-height: 300px;
+                    width: 100%;
+                    max-width: 100%;
+                }
+
+                .notion-block {
+                    position: relative;
+                    margin-bottom: 2px;
+                    padding: 3px 0;
+                    transition: background 0.2s;
+                    border-radius: 4px;
+                }
+
+                .notion-block:hover {
+                    background: #f7f6f3;
+                }
+
+                .notion-block.dragging {
+                    opacity: 0.5;
+                }
+
+                .notion-block-controls {
+                    position: absolute;
+                    left: -50px;
+                    top: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    opacity: 0;
+                    transition: opacity 0.2s;
+                }
+
+                .notion-block:hover .notion-block-controls {
+                    opacity: 1;
+                }
+
+                .notion-drag-handle {
+                    width: 24px;
+                    height: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: grab;
+                    color: #787774;
+                    border-radius: 4px;
+                }
+
+                .notion-drag-handle:hover {
+                    background: #e9e9e7;
+                    color: #37352f;
+                }
+
+                .notion-drag-handle:active {
+                    cursor: grabbing;
+                }
+
+                .notion-block-menu {
+                    width: 24px;
+                    height: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    color: #787774;
+                    border-radius: 4px;
+                    border: none;
+                    background: transparent;
+                }
+
+                .notion-block-menu:hover {
+                    background: #e9e9e7;
+                    color: #37352f;
+                }
+
+                .notion-block-content {
+                    position: relative;
+                    width: 100%;
+                    max-width: 100%;
+                    overflow: hidden;
+                    box-sizing: border-box;
+                }
+
+                .notion-block-editable {
+                    outline: none;
+                    min-height: 24px;
+                    line-height: 1.5;
+                    color: #37352f;
+                    padding: 0 2px;
+                }
+
+                .notion-block-placeholder {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    color: #e9e9e7;
+                    pointer-events: none;
+                    user-select: none;
+                }
+
+                /* Block Type Styles */
+                .notion-block-header {
+                    font-size: 30px;
+                    font-weight: 700;
+                    margin: 24px 0 8px;
+                }
+
+                .notion-block-title {
+                    font-size: 24px;
+                    font-weight: 600;
+                    margin: 20px 0 6px;
+                }
+
+                .notion-block-text {
+                    font-size: 16px;
+                }
+
+                .notion-block-list {
+                    padding-left: 24px;
+                }
+
+                .notion-block-list li {
+                    margin-bottom: 4px;
+                }
+
+                .notion-block-todo {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 8px;
+                }
+
+                .notion-todo-checkbox {
+                    width: 16px;
+                    height: 16px;
+                    margin-top: 3px;
+                    cursor: pointer;
+                }
+
+                .notion-block-code {
+                    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+                    font-size: 14px;
+                    background: #f7f6f3;
+                    padding: 16px;
+                    border-radius: 6px;
+                    overflow-x: auto;
+                }
+
+                .notion-block-quote {
+                    border-left: 3px solid #37352f;
+                    padding-left: 14px;
+                    color: #787774;
+                    font-style: italic;
+                }
+
+                /* Enhanced Code Block Styles */
+                .notion-code-wrapper {
+                    margin: 16px 0;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 6px;
+                    overflow: hidden;
+                }
+
+                .notion-code-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 8px 16px;
+                    background: #f7f6f3;
+                    border-bottom: 1px solid #e9e9e7;
+                }
+
+                .code-language {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #787774;
+                    text-transform: uppercase;
+                }
+
+                .notion-code-copy {
+                    background: white;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 4px;
+                    padding: 4px 12px;
+                    font-size: 12px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    color: #37352f;
+                }
+
+                .notion-code-copy:hover {
+                    background: #f1f1ef;
+                    border-color: #37352f;
+                }
+
+                .notion-code-copy i {
+                    margin-right: 4px;
+                }
+
+                /* Enhanced Image Block Styles */
+                .notion-block-image-container {
+                    margin: 16px 0;
+                }
+
+                .notion-image-wrapper {
+                    position: relative;
+                    display: inline-block;
+                    max-width: 100%;
+                }
+
+                .notion-resizable-image.resizing {
+                    opacity: 0.8;
+                    box-shadow: 0 0 0 2px #2383e2;
+                }
+
+                .notion-resize-handle {
+                    position: absolute;
+                    background: #2383e2;
+                    border: 2px solid white;
+                    border-radius: 4px;
+                    width: 10px;
+                    height: 10px;
+                    opacity: 0;
+                    transition: opacity 0.2s;
+                    cursor: nwse-resize;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+
+                .notion-image-wrapper:hover .notion-resize-handle {
+                    opacity: 1;
+                }
+
+                .notion-resize-se {
+                    bottom: -5px;
+                    right: -5px;
+                    cursor: nwse-resize;
+                }
+
+                .notion-resize-e {
+                    top: 50%;
+                    right: -5px;
+                    transform: translateY(-50%);
+                    cursor: ew-resize;
+                }
+
+                .notion-resize-s {
+                    bottom: -5px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    cursor: ns-resize;
+                }
+
+                .notion-image-toolbar {
+                    margin-top: 8px;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    font-size: 12px;
+                    color: #787774;
+                }
+
+                .image-dimensions {
+                    background: #f7f6f3;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-family: monospace;
+                }
+
+                /* Embed Block Styles */
+                .notion-block-embed-container {
+                    margin: 16px 0;
+                    position: relative;
+                    background: #f7f6f3;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    max-width: 100%;
+                }
+
+                .notion-embed-wrapper {
+                    position: relative;
+                    width: 100%;
+                    padding-bottom: 56.25%; /* 16:9 aspect ratio by default */
+                    background: #000;
+                }
+
+                .notion-embed-wrapper.embed-square {
+                    padding-bottom: 100%; /* 1:1 aspect ratio */
+                }
+
+                .notion-embed-wrapper.embed-portrait {
+                    padding-bottom: 133.33%; /* 3:4 aspect ratio */
+                }
+
+                .notion-embed-wrapper.embed-instagram {
+                    padding-bottom: 125%; /* 4:5 aspect ratio */
+                }
+
+                .notion-embed-wrapper.embed-a4 {
+                    padding-bottom: 141.42%; /* A4 aspect ratio (√2:1) */
+                }
+
+                .notion-embed-wrapper.embed-auto {
+                    padding-bottom: 0;
+                    height: auto;
+                    min-height: 400px;
+                }
+
+                .notion-embed-wrapper.embed-auto iframe {
+                    position: relative;
+                    height: 600px;
+                }
+
+                .notion-embed-wrapper iframe,
+                .notion-embed-iframe {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    border: none;
+                }
+
+                .notion-embed-wrapper.embed-auto iframe {
+                    position: relative;
+                }
+
+                .notion-embed-error {
+                    padding: 40px;
+                    text-align: center;
+                    color: #787774;
+                }
+
+                .notion-embed-error i {
+                    font-size: 48px;
+                    margin-bottom: 16px;
+                    opacity: 0.5;
+                }
+
+                .notion-embed-toolbar {
+                    position: absolute;
+                    top: 8px;
+                    right: 8px;
+                    display: flex;
+                    gap: 8px;
+                    opacity: 0;
+                    transition: opacity 0.2s;
+                    z-index: 10;
+                }
+
+                .notion-block-embed-container:hover .notion-embed-toolbar {
+                    opacity: 1;
+                }
+
+                .notion-embed-btn {
+                    background: white;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 4px;
+                    padding: 6px 10px;
+                    font-size: 12px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    color: #37352f;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+
+                .notion-embed-btn:hover {
+                    background: #f1f1ef;
+                    border-color: #37352f;
+                }
+
+                /* Formatting Toolbar Styles */
+                .notion-formatting-toolbar {
+                    position: fixed;
+                    background: white;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    padding: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    z-index: 1100;
+                    flex-wrap: wrap;
+                    max-width: 600px;
+                }
+
+                .formatting-group {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+
+                .formatting-separator {
+                    width: 1px;
+                    height: 24px;
+                    background: #e9e9e7;
+                }
+
+                .format-btn {
+                    width: 32px;
+                    height: 32px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: none;
+                    background: transparent;
+                    color: #37352f;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-size: 14px;
+                }
+
+                .format-btn:hover {
+                    background: #f1f1ef;
+                }
+
+                .format-btn.active {
+                    background: #2383e2;
+                    color: white;
+                }
+
+                .format-font-btn,
+                .format-size-btn {
+                    width: auto;
+                    padding: 0 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+
+                .font-label,
+                .size-label {
+                    font-size: 12px;
+                }
+
+                /* Custom Dropdown Menu */
+                .notion-dropdown-menu {
+                    position: fixed;
+                    background: white;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 6px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 1200;
+                    min-width: 150px;
+                    max-height: 300px;
+                    overflow-y: auto;
+                }
+
+                .dropdown-item {
+                    padding: 8px 16px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-size: 14px;
+                    color: #37352f;
+                }
+
+                .dropdown-item:hover {
+                    background: #f1f1ef;
+                }
+
+                .dropdown-item:active {
+                    background: #e9e9e7;
+                }
+
+                .format-color {
+                    width: 32px;
+                    height: 32px;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    padding: 4px;
+                }
+
+                /* Highlight Color Palette */
+                .notion-highlight-palette {
+                    position: fixed;
+                    background: white;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    padding: 12px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 1101;
+                }
+
+                .highlight-colors {
+                    display: flex;
+                    gap: 8px;
+                }
+
+                .highlight-color {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    border: 2px solid transparent;
+                    transition: all 0.2s;
+                }
+
+                .highlight-color:hover {
+                    transform: scale(1.1);
+                    border-color: #37352f;
+                }
+
+                .highlight-color:first-child {
+                    border: 2px solid #e9e9e7;
+                    position: relative;
+                }
+
+                .highlight-color:first-child:after {
+                    content: '×';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    font-size: 20px;
+                    color: #787774;
+                }
+
+                /* Text Formatting Styles */
+                .notion-block-editable strong {
+                    font-weight: 700;
+                }
+
+                .notion-block-editable em {
+                    font-style: italic;
+                }
+
+                .notion-block-editable u {
+                    text-decoration: underline;
+                }
+
+                .notion-block-editable strike {
+                    text-decoration: line-through;
+                }
+
+                .notion-block-editable a {
+                    color: #2383e2;
+                    text-decoration: underline;
+                    cursor: pointer;
+                }
+
+                .notion-block-editable a:hover {
+                    color: #1a6bb8;
+                }
+
+                /* Font size classes */
+                .notion-block-editable font[size="1"] { font-size: 12px; }
+                .notion-block-editable font[size="2"] { font-size: 16px; }
+                .notion-block-editable font[size="3"] { font-size: 20px; }
+                .notion-block-editable font[size="4"] { font-size: 24px; }
+                .notion-block-editable font[size="5"] { font-size: 32px; }
+
+                /* Maintain formatting in different block types */
+                .notion-block-header {
+                    font-size: 30px;
+                    font-weight: 700;
+                    margin: 24px 0 8px;
+                }
+
+                .notion-block-title {
+                    font-size: 24px;
+                    font-weight: 600;
+                    margin: 20px 0 6px;
+                }
+
+                .notion-block-text {
+                    font-size: 16px;
+                }
+
+                /* Block hover state with formatting */
+                .notion-block:hover {
+                    background: #f7f6f3;
+                }
+
+                /* Preserve list formatting */
+                .notion-block-editable ul,
+                .notion-block-editable ol {
+                    margin: 8px 0;
+                    padding-left: 24px;
+                }
+
+                .notion-block-editable ul li,
+                .notion-block-editable ol li {
+                    margin: 4px 0;
+                }
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    25% { transform: translateX(-5px); }
+                    75% { transform: translateX(5px); }
+                }
+
+                .notion-block.deleting {
+                    animation: shake 0.3s ease-in-out;
+                    background: #fee;
+                }
+
+                /* Move animation */
+                @keyframes slideUp {
+                    from { transform: translateY(20px); opacity: 0.5; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+
+                @keyframes slideDown {
+                    from { transform: translateY(-20px); opacity: 0.5; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+
+                .notion-block.moving-up {
+                    animation: slideUp 0.3s ease;
+                }
+
+                .notion-block.moving-down {
+                    animation: slideDown 0.3s ease;
+                }
+
+                /* Empty State */
+                .notion-empty-state {
+                    text-align: center;
+                    padding: 60px 20px;
+                    color: #787774;
+                }
+
+                .notion-empty-state p {
+                    margin: 20px 0;
+                }
+
+                /* Floating Action Button */
+                .notion-fab {
+                    position: fixed;
+                    bottom: 30px;
+                    right: 30px;
+                    width: 56px;
+                    height: 56px;
+                    border-radius: 50%;
+                    background: #2383e2;
+                    color: white;
+                    border: none;
+                    font-size: 24px;
+                    cursor: pointer;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    transition: all 0.3s;
+                    z-index: 1000;
+                }
+
+                .notion-fab:hover {
+                    background: #1a6bb8;
+                    transform: scale(1.1);
+                    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+                }
+
+                /* Save Message */
+                .notion-save-message {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 400px;
+                    background: #f7f6f3;
+                    border-radius: 8px;
+                    padding: 40px;
+                }
+
+                .save-message-content {
+                    text-align: center;
+                    max-width: 400px;
+                }
+
+                .save-message-content h4 {
+                    font-size: 24px;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    color: #37352f;
+                }
+
+                .save-message-content p {
+                    color: #787774;
+                    margin-bottom: 24px;
+                }
+
+                /* Animations */
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                .fade-in {
+                    animation: fadeIn 0.3s ease;
+                }
+
+                /* Mobile Responsive */
+                @media (max-width: 768px) {
+                    .notion-editor {
+                        padding: 20px;
+                    }
+                    
+                    .notion-sidebar {
+                        position: fixed;
+                        z-index: 100;
+                        height: 100%;
+                        box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+                    }
+                    
+                    .notion-header-center {
+                        display: none;
+                    }
+                    
+                    .notion-page-title {
+                        font-size: 28px;
+                    }
+                    
+                    .notion-block-controls {
+                        position: relative;
+                        left: auto;
+                        opacity: 1;
+                        background: #f7f6f3;
+                        padding: 4px;
+                        border-radius: 4px;
+                        margin-bottom: 8px;
+                    }
+                }
+            </style>
+        `;
+        
+        document.head.insertAdjacentHTML('beforeend', styles);
+    }
+
+    bindEvents() {
+        var self = this;
+        
+        // Search
+        $('#notion_search').on('input', function(e) {
+            self.searchTerm = e.target.value;
+            self.filterBlocks();
+        });
+
+        // Page title auto-resize
+        $('.notion-page-title').on('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+        
+        // Text selection for formatting toolbar
+        $(document).on('mouseup', function(e) {
+            self.handleTextSelection(e);
+        });
+        
+        // Hide formatting toolbar on click outside
+        $(document).on('mousedown', function(e) {
+            if (!$(e.target).closest('.notion-formatting-toolbar, .notion-highlight-palette, .notion-dropdown-menu').length) {
+                self.hideFormattingToolbar();
+                $('#notion_font_menu').hide();
+                $('#notion_size_menu').hide();
+            }
+        });
+        
+        // Font dropdown handler
+        $(document).on('change', '.format-font', function(e) {
+            e.stopPropagation();
+            const fontName = $(this).val();
+            if (fontName) {
+                // Store current selection
+                const selection = window.getSelection();
+                const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+                
+                if (range && !selection.isCollapsed) {
+                    // Apply font directly
+                    document.execCommand('styleWithCSS', false, true);
+                    document.execCommand('fontName', false, fontName);
+                    
+                    // Save the content
+                    const editable = $(range.commonAncestorContainer).closest('.notion-block-editable');
+                    if (editable.length) {
+                        self.saveFormattedContent(editable);
+                    }
+                }
+                
+                // Reset dropdown
+                $(this).val('');
+            }
+        });
+        
+        // Size dropdown handler
+        $(document).on('change', '.format-size', function(e) {
+            e.stopPropagation();
+            const size = $(this).val();
+            if (size) {
+                // Store current selection
+                const selection = window.getSelection();
+                const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+                
+                if (range && !selection.isCollapsed) {
+                    // Apply size directly
+                    document.execCommand('styleWithCSS', false, true);
+                    document.execCommand('fontSize', false, size);
+                    
+                    // Save the content
+                    const editable = $(range.commonAncestorContainer).closest('.notion-block-editable');
+                    if (editable.length) {
+                        self.saveFormattedContent(editable);
+                    }
+                }
+                
+                // Reset dropdown
+                $(this).val('');
+            }
+        });
+        
+        // Keyboard shortcuts for formatting
+        $(document).on('keydown', '.notion-block-editable[contenteditable="true"]', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'b':
+                        e.preventDefault();
+                        self.formatText('bold');
+                        break;
+                    case 'i':
+                        e.preventDefault();
+                        self.formatText('italic');
+                        break;
+                    case 'u':
+                        e.preventDefault();
+                        self.formatText('underline');
+                        break;
+                    case 'k':
+                        e.preventDefault();
+                        self.insertLink();
+                        break;
+                }
+            }
+        });
+    }
+
+    handleTextSelection(e) {
+        const selection = window.getSelection();
+        if (!selection.isCollapsed && selection.toString().trim()) {
+            // Check if selection is within an editable block
+            const editableParent = $(selection.anchorNode).closest('.notion-block-editable[contenteditable="true"]');
+            if (editableParent.length) {
+                this.showFormattingToolbar(e);
+            }
+        } else {
+            this.hideFormattingToolbar();
+        }
+    }
+
+    showFormattingToolbar(e) {
+        const toolbar = $('#notion_formatting_toolbar');
+        const selection = window.getSelection();
+        
+        if (!selection.rangeCount) return;
+        
+        // Save the current selection
+        this.saveSelection();
+        
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        
+        // Calculate position
+        let top = rect.top - toolbar.outerHeight() - 10;
+        let left = rect.left + (rect.width / 2) - (toolbar.outerWidth() / 2);
+        
+        // Ensure toolbar stays within viewport
+        if (top < 10) {
+            top = rect.bottom + 10;
+        }
+        if (left < 10) {
+            left = 10;
+        }
+        if (left + toolbar.outerWidth() > window.innerWidth - 10) {
+            left = window.innerWidth - toolbar.outerWidth() - 10;
+        }
+        
+        // Position and show toolbar
+        toolbar.css({
+            top: top + 'px',
+            left: left + 'px',
+            display: 'flex'
+        });
+        
+        // Reset dropdowns
+        $('.format-select').val('');
+        
+        // Update button states
+        this.updateFormattingButtons();
+        
+        // Debug: Add click handler to test
+        var self = this;
+        $('.format-font, .format-size').off('click').on('click', function(e) {
+            e.stopPropagation();
+            console.log('Dropdown clicked');
+            self.saveSelection();
+        });
+    }
+
+    hideFormattingToolbar() {
+        $('#notion_formatting_toolbar').hide();
+        $('#notion_highlight_palette').hide();
+    }
+
+    updateFormattingButtons() {
+        // Update active states for formatting buttons
+        $('.format-btn').removeClass('active');
+        
+        if (document.queryCommandState('bold')) {
+            $('.format-btn:has(.fa-bold)').addClass('active');
+        }
+        if (document.queryCommandState('italic')) {
+            $('.format-btn:has(.fa-italic)').addClass('active');
+        }
+        if (document.queryCommandState('underline')) {
+            $('.format-btn:has(.fa-underline)').addClass('active');
+        }
+        if (document.queryCommandState('strikeThrough')) {
+            $('.format-btn:has(.fa-strikethrough)').addClass('active');
+        }
+    }
+
+    formatText(command) {
+        // Store current selection
+        const selection = window.getSelection();
+        const range = selection.getRangeAt(0);
+        const editableParent = $(selection.anchorNode).closest('.notion-block-editable[contenteditable="true"]');
+        
+        if (!editableParent.length) return;
+        
+        // Execute formatting command
+        document.execCommand(command, false, null);
+        
+        // Update toolbar button states
+        this.updateFormattingButtons();
+        
+        // Save the formatted content
+        this.saveFormattedContent(editableParent);
+    }
+
+    showFontMenu() {
+        const menu = $('#notion_font_menu');
+        const button = $('.format-font-btn');
+        
+        if (menu.is(':visible')) {
+            menu.hide();
+            return;
+        }
+        
+        // Hide other menus
+        $('#notion_size_menu').hide();
+        $('#notion_highlight_palette').hide();
+        
+        // Save selection
+        this.saveSelection();
+        
+        // Position menu below button
+        const offset = button.offset();
+        menu.css({
+            top: offset.top + button.outerHeight() + 5 + 'px',
+            left: offset.left + 'px',
+            display: 'block'
+        });
+    }
+
+    showSizeMenu() {
+        const menu = $('#notion_size_menu');
+        const button = $('.format-size-btn');
+        
+        if (menu.is(':visible')) {
+            menu.hide();
+            return;
+        }
+        
+        // Hide other menus
+        $('#notion_font_menu').hide();
+        $('#notion_highlight_palette').hide();
+        
+        // Save selection
+        this.saveSelection();
+        
+        // Position menu below button
+        const offset = button.offset();
+        menu.css({
+            top: offset.top + button.outerHeight() + 5 + 'px',
+            left: offset.left + 'px',
+            display: 'block'
+        });
+    }
+
+    applyFont(fontName) {
+        // Restore selection
+        this.restoreSelection();
+        
+        const selection = window.getSelection();
+        if (!selection.rangeCount || selection.isCollapsed) {
+            frappe.show_alert({
+                message: __('Please select text first'),
+                indicator: 'orange'
+            }, 2);
+            $('#notion_font_menu').hide();
+            return;
+        }
+        
+        // Apply font
+        document.execCommand('styleWithCSS', false, true);
+        document.execCommand('fontName', false, fontName);
+        
+        // Save content
+        const editable = $(selection.anchorNode).closest('.notion-block-editable');
+        if (editable.length) {
+            this.saveFormattedContent(editable);
+        }
+        
+        // Hide menu
+        $('#notion_font_menu').hide();
+        
+        // Update button states
+        this.updateFormattingButtons();
+    }
+
+    applySize(size) {
+        // Restore selection
+        this.restoreSelection();
+        
+        const selection = window.getSelection();
+        if (!selection.rangeCount || selection.isCollapsed) {
+            frappe.show_alert({
+                message: __('Please select text first'),
+                indicator: 'orange'
+            }, 2);
+            $('#notion_size_menu').hide();
+            return;
+        }
+        
+        // Apply size
+        document.execCommand('styleWithCSS', false, true);
+        document.execCommand('fontSize', false, size);
+        
+        // Save content
+        const editable = $(selection.anchorNode).closest('.notion-block-editable');
+        if (editable.length) {
+            this.saveFormattedContent(editable);
+        }
+        
+        // Hide menu
+        $('#notion_size_menu').hide();
+        
+        // Update button states
+        this.updateFormattingButtons();
+    }
+
+    changeColor(color) {
+        document.execCommand('foreColor', false, color);
+        this.saveFormattedContent();
+    }
+
+    showHighlightColors() {
+        const palette = $('#notion_highlight_palette');
+        const toolbar = $('#notion_formatting_toolbar');
+        const highlightBtn = toolbar.find('.fa-paint-brush').parent();
+        
+        const offset = highlightBtn.offset();
+        palette.css({
+            top: offset.top + highlightBtn.outerHeight() + 5 + 'px',
+            left: offset.left + 'px',
+            display: 'block'
+        });
+    }
+
+    setHighlight(color) {
+        if (!color) {
+            document.execCommand('removeFormat', false, null);
+        } else {
+            document.execCommand('hiliteColor', false, color);
+        }
+        $('#notion_highlight_palette').hide();
+        this.saveFormattedContent();
+    }
+
+    insertLink() {
+        const url = prompt('Enter URL:');
+        if (url) {
+            document.execCommand('createLink', false, url);
+            this.saveFormattedContent();
+        }
+    }
+
+    clearFormatting() {
+        document.execCommand('removeFormat', false, null);
+        this.saveFormattedContent();
+    }
+
+    saveFormattedContent(editableElement) {
+        const $editable = editableElement || $(window.getSelection().anchorNode).closest('.notion-block-editable');
+        if (!$editable.length) return;
+        
+        const blockId = $editable.data('block-id');
+        const htmlContent = $editable.html();
+        const block = this.blocks.find(b => b.name === blockId);
+        
+        if (!block) return;
+        
+        // Determine which field to update
+        let fieldToUpdate = null;
+        let updateData = {};
+        
+        if (block.header) {
+            fieldToUpdate = 'header';
+        } else if (block.title) {
+            fieldToUpdate = 'title';
+        } else if (block.text) {
+            fieldToUpdate = 'text';
+        }
+        
+        if (fieldToUpdate) {
+            // Store formatted HTML content
+            updateData[fieldToUpdate] = htmlContent;
+            updateData[`custom_${fieldToUpdate}_formatted`] = 1; // Flag to indicate formatted content
+            
+            frappe.call({
+                method: "frappe.client.set_value",
+                args: {
+                    doctype: "Operation Guide DATA",
+                    name: blockId,
+                    fieldname: updateData
+                },
+                callback: function(r) {
+                    if (!r.exc) {
+                        block[fieldToUpdate] = htmlContent;
+                        frappe.show_alert({
+                            message: __('Formatting saved'),
+                            indicator: 'green'
+                        }, 1);
+                    }
+                }
+            });
+        }
+    }
+
+    toggleSidebar() {
+        $('#notion_sidebar').toggleClass('collapsed');
+    }
+
+    updateTitle(value) {
+        this.frm.set_value('operation_guide_title', value);
+    }
+
+    showHistory() {
+        frappe.msgprint({
+            title: 'Version History',
+            message: 'Version history feature coming soon!',
+            indicator: 'blue'
+        });
+    }
+
+    showBlockMenu() {
+        var self = this;
+        
+        const blockTypes = [
+            { type: "Header", icon: "fa-header", description: "Large section header" },
+            { type: "Title", icon: "fa-font", description: "Medium title" },
+            { type: "Text", icon: "fa-paragraph", description: "Plain text paragraph" },
+            { type: "List", icon: "fa-list", description: "Bullet point list" },
+            { type: "Todo", icon: "fa-check-square-o", description: "Checkbox list" },
+            { type: "Code", icon: "fa-code", description: "Code block" },
+            { type: "Quote", icon: "fa-quote-left", description: "Blockquote" },
+            { type: "Divider", icon: "fa-minus", description: "Horizontal line" },
+            { type: "Photo", icon: "fa-image", description: "Image" },
+            { type: "Attachment", icon: "fa-paperclip", description: "File attachment" },
+            { type: "Link", icon: "fa-link", description: "Web link" },
+            { type: "Embed", icon: "fa-play-circle", description: "Embed content" }
+        ];
+
+        let html = '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">';
+        blockTypes.forEach(function(type) {
+            html += `
+                <div class="notion-block-type-option" data-type="${type.type}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e9e9e7; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                    <i class="fa ${type.icon}" style="font-size: 20px; color: #787774;"></i>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #37352f;">${type.type}</div>
+                        <div style="font-size: 12px; color: #787774;">${type.description}</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        const dialog = new frappe.ui.Dialog({
+            title: '<i class="fa fa-plus-circle"></i> Add New Block',
+            fields: [{ fieldname: "block_types", fieldtype: "HTML", options: html }],
+            size: "large"
+        });
+
+        dialog.show();
+
+        $(dialog.$wrapper).find('.notion-block-type-option').on('click', function(e) {
+            const blockType = $(this).data("type");
+            dialog.hide();
+            self.quickAddBlock(blockType);
+        });
+
+        // Add hover effect
+        $(dialog.$wrapper).find('.notion-block-type-option').hover(
+            function() {
+                $(this).css({
+                    'background': '#f7f6f3',
+                    'border-color': '#37352f',
+                    'transform': 'translateY(-2px)',
+                    'box-shadow': '0 4px 12px rgba(0,0,0,0.1)'
+                });
+            },
+            function() {
+                $(this).css({
+                    'background': 'transparent',
+                    'border-color': '#e9e9e7',
+                    'transform': 'translateY(0)',
+                    'box-shadow': 'none'
+                });
+            }
+        );
+    }
+
+    quickAddBlock(type) {
+        var self = this;
+        
+        if (type === "Divider") {
+            // Divider doesn't need input
+            self.createBlock("divider", { divider: "---" }, "Divider");
+        } else if (type === "Todo") {
+            // Create todo block
+            frappe.prompt([
+                {
+                    label: 'Todo Item',
+                    fieldname: 'todo_text',
+                    fieldtype: 'Data',
+                    reqd: 1
+                }
+            ], function(values) {
+                self.createBlock("todo", { 
+                    text: values.todo_text,
+                    checked: false 
+                }, "Todo");
+            }, '<i class="fa fa-check-square-o"></i> Add Todo Item');
+        } else if (type === "Quote") {
+            frappe.prompt([
+                {
+                    label: 'Quote Text',
+                    fieldname: 'quote_text',
+                    fieldtype: 'Small Text',
+                    reqd: 1
+                }
+            ], function(values) {
+                self.createBlock("quote", { 
+                    text: values.quote_text
+                }, "Quote");
+            }, '<i class="fa fa-quote-left"></i> Add Quote');
+        } else if (type === "Code") {
+            frappe.prompt([
+                {
+                    label: 'Language',
+                    fieldname: 'language',
+                    fieldtype: 'Select',
+                    options: ['JavaScript', 'Python', 'HTML', 'CSS', 'SQL', 'Other'],
+                    default: 'JavaScript'
+                },
+                {
+                    label: 'Code',
+                    fieldname: 'code',
+                    fieldtype: 'Code',
+                    reqd: 1
+                }
+            ], function(values) {
+                const fieldName = values.language === 'Python' ? 'python_code' : 'js_code';
+                const blockData = {};
+                blockData[fieldName] = values.code;
+                self.createBlock(fieldName, blockData, type);
+            }, '<i class="fa fa-code"></i> Add Code Block');
+        } else if (type === "Embed") {
+            frappe.prompt([
+                {
+                    label: 'Embed URL or Code',
+                    fieldname: 'embed_code',
+                    fieldtype: 'Long Text',
+                    reqd: 1,
+                    description: 'Paste YouTube link, Canva embed code, or any embed/iframe code',
+                    default: ''
+                },
+                {
+                    label: 'Aspect Ratio',
+                    fieldname: 'aspect_ratio',
+                    fieldtype: 'Select',
+                    options: [
+                        '16:9 (Default)',
+                        '1:1 (Square)', 
+                        '3:4 (Portrait)',
+                        '4:5 (Instagram)',
+                        'A4 (Document)',
+                        'Auto (Content Height)'
+                    ],
+                    default: '16:9 (Default)',
+                    description: 'Choose aspect ratio - use "A4" for Canva documents'
+                }
+            ], function(values) {
+                if (!values.embed_code || values.embed_code.trim() === '') {
+                    frappe.show_alert({
+                        message: __('Please provide embed code or URL'),
+                        indicator: 'red'
+                    }, 3);
+                    return;
+                }
+                self.createBlock("embed", { 
+                    embed: self.processEmbedCode(values.embed_code),
+                    aspect_ratio: values.aspect_ratio
+                }, "Embed");
+            }, '<i class="fa fa-play-circle"></i> Add Embed');
+        } else {
+            // Use original input dialog for other types
+            self.openBlockInputDialog(type);
+        }
+    }
+
+    processEmbedCode(input) {
+        // Trim whitespace
+        input = input.trim();
+        
+        // Check if it's a Canva embed with div wrapper
+        if (input.includes('canva.com') && input.includes('<div')) {
+            // Extract just the iframe from Canva embeds
+            const iframeMatch = input.match(/<iframe[^>]*>[\s\S]*?<\/iframe>/i);
+            if (iframeMatch) {
+                let iframe = iframeMatch[0];
+                // Remove inline styles that might conflict
+                iframe = iframe.replace(/style="[^"]*"/gi, '');
+                // Remove loading attribute as it might cause issues
+                iframe = iframe.replace(/loading="[^"]*"/gi, '');
+                return iframe;
+            }
+        }
+        
+        // If it's already an iframe, clean it up and return
+        if (input.includes('<iframe')) {
+            // For complex embeds with divs, extract just the iframe
+            if (input.includes('<div')) {
+                const iframeMatch = input.match(/<iframe[^>]*>[\s\S]*?<\/iframe>/i);
+                if (iframeMatch) {
+                    input = iframeMatch[0];
+                }
+            }
+            
+            // Remove any width/height/style attributes to let CSS handle sizing
+            input = input.replace(/width="[^"]*"/gi, '');
+            input = input.replace(/height="[^"]*"/gi, '');
+            input = input.replace(/style="[^"]*"/gi, '');
+            
+            return input;
+        }
+        
+        // Process YouTube URLs
+        if (input.includes('youtube.com/watch') || input.includes('youtu.be/') || input.includes('youtube.com/embed/')) {
+            let videoId = '';
+            
+            // Extract video ID from different YouTube URL formats
+            if (input.includes('youtube.com/watch')) {
+                const match = input.match(/[?&]v=([^&]+)/);
+                videoId = match ? match[1] : '';
+            } else if (input.includes('youtu.be/')) {
+                const parts = input.split('youtu.be/')[1];
+                videoId = parts ? parts.split(/[?&]/)[0] : '';
+            } else if (input.includes('youtube.com/embed/')) {
+                const parts = input.split('youtube.com/embed/')[1];
+                videoId = parts ? parts.split(/[?&]/)[0] : '';
+            }
+            
+            if (videoId) {
+                return `<iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+            }
+        }
+        
+        // Process Vimeo URLs
+        if (input.includes('vimeo.com/')) {
+            const match = input.match(/vimeo\.com\/(\d+)/);
+            const videoId = match ? match[1] : '';
+            if (videoId) {
+                return `<iframe src="https://player.vimeo.com/video/${videoId}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+            }
+        }
+        
+        // Process Canva direct URLs
+        if (input.includes('canva.com/design/') && !input.includes('<')) {
+            // Convert Canva URL to embed URL
+            if (!input.includes('/view?embed')) {
+                input = input.replace('/view', '/view?embed');
+            }
+            return `<iframe src="${input}" frameborder="0" allowfullscreen="allowfullscreen" allow="fullscreen"></iframe>`;
+        }
+        
+        // If it's a URL but not recognized, try to create a generic iframe
+        if (input.startsWith('http://') || input.startsWith('https://')) {
+            return `<iframe src="${input}" frameborder="0" allowfullscreen></iframe>`;
+        }
+        
+        // Otherwise, assume it's embed code and return as is
+        return input;
+    }
+
+    addNewBlock() {
+        this.showBlockMenu();
+    }
+
+    openBlockInputDialog(type, docname, currentValue) {
+        var self = this;
+        
+        const fieldMap = {
+            "Header": { fieldtype: "Data", label: "Header Text", icon: "fa-header" },
+            "Title": { fieldtype: "Data", label: "Title Text", icon: "fa-font" },
+            "List": { fieldtype: "Text", label: "List Items (one per line)", icon: "fa-list" },
+            "Text": { fieldtype: "Small Text", label: "Paragraph Text", icon: "fa-paragraph" },
+            "Photo": { fieldtype: "Attach Image", label: "Upload Image", icon: "fa-image" },
+            "Attachment": { fieldtype: "Attach", label: "Upload File", icon: "fa-paperclip" },
+            "Link": { fieldtype: "Data", label: "URL", icon: "fa-link" }
+        };
+
+        const config = fieldMap[type];
+        if (!config) return;
+        
+        const fieldKey = type.toLowerCase().replace(" ", "_");
+
+        const fields = [
+            {
+                label: config.label,
+                fieldname: fieldKey,
+                fieldtype: config.fieldtype,
+                reqd: 1,
+                default: currentValue || ""
+            }
+        ];
+
+        // Add description field
+        if (type !== "Photo" && type !== "Attachment") {
+            fields.push({
+                label: "Description (Optional)",
+                fieldname: "description",
+                fieldtype: "Small Text",
+                description: "Brief description of this block"
+            });
+        }
+
+        frappe.prompt(fields, function(values) {
+            values.operation_guide_title = self.frm.doc.operation_guide_title;
+            
+            if (docname) {
+                self.updateBlock(docname, fieldKey, values);
+            } else {
+                self.createBlock(fieldKey, values, type);
+            }
+        }, `<i class="fa ${config.icon}"></i> ${docname ? "Edit" : "Add"} ${type}`);
+    }
+
+    createBlock(fieldKey, values, type) {
+        var self = this;
+        
+        const blockData = {
+            doctype: "Operation Guide DATA",
+            operation_guide_title: this.frm.doc.operation_guide_title,
+            block_type: type
+        };
+
+        // Handle different block types
+        if (type === "Todo") {
+            blockData.text = values.text;
+            blockData.custom_todo_checked = values.checked || 0;
+        } else if (type === "Quote") {
+            blockData.text = values.text;
+        } else if (type === "Divider") {
+            blockData.text = "---";
+        } else if (type === "Embed") {
+            blockData.embed = values.embed;
+            blockData.custom_aspect_ratio = values.aspect_ratio || '16:9 (Default)';
+        } else {
+            blockData[fieldKey] = values[fieldKey];
+            if (values.description) {
+                blockData.description = values.description;
+            }
+        }
+
+        frappe.call({
+            method: "frappe.client.insert",
+            args: { doc: blockData },
+            callback: function(r) {
+                if (!r.exc) {
+                    frappe.show_alert({
+                        message: __('Block added successfully'),
+                        indicator: 'green'
+                    }, 3);
+                    self.loadExistingBlocks();
+                }
+            }
+        });
+    }
+
+    updateBlock(docname, fieldKey, values) {
+        var self = this;
+        
+        const updateData = {};
+        updateData[fieldKey] = values[fieldKey];
+        
+        if (values.description !== undefined) {
+            updateData.description = values.description;
+        }
+
+        frappe.call({
+            method: "frappe.client.set_value",
+            args: {
+                doctype: "Operation Guide DATA",
+                name: docname,
+                fieldname: updateData
+            },
+            callback: function(r) {
+                if (!r.exc) {
+                    frappe.show_alert({
+                        message: __('Block updated successfully'),
+                        indicator: 'green'
+                    }, 3);
+                    self.loadExistingBlocks();
+                }
+            }
+        });
+    }
+
+    loadExistingBlocks() {
+        var self = this;
+        
+        frappe.call({
+            method: "frappe.client.get_list",
+            args: {
+                doctype: "Operation Guide DATA",
+                filters: { operation_guide_title: this.frm.doc.operation_guide_title },
+                fields: ["*"],
+                order_by: "creation asc"
+            },
+            callback: function(r) {
+                if (r.message) {
+                    self.blocks = r.message;
+                    self.renderBlocks();
+                    self.toggleEmptyState(self.blocks.length === 0);
+                    self.updateOutline();
+                }
+            },
+            error: function(r) {
+                console.error('Error loading blocks:', r);
+                frappe.show_alert({
+                    message: __('Failed to load blocks'),
+                    indicator: 'red'
+                }, 5);
+            }
+        });
+    }
+
+    renderBlocks() {
+        const container = document.getElementById('notion_blocks_container');
+        if (!container) return;
+
+        let html = "";
+        
+        for (let i = 0; i < this.blocks.length; i++) {
+            const block = this.blocks[i];
+            html += this.renderBlock(block, i);
+        }
+
+        container.innerHTML = html;
+        
+        this.attachEventHandlers();
+        this.filterBlocks();
+    }
+
+    renderBlock(block, index) {
+        const blockType = this.getBlockType(block);
+        let content = "";
+        let blockClass = "";
+        let isEditable = true;
+        
+        // Render content based on type
+        if (block.header) {
+            // Check if content is formatted (contains HTML tags)
+            if (block.header.includes('<') && block.header.includes('>')) {
+                content = block.header; // Use HTML as-is
+            } else {
+                content = frappe.utils.escape_html(block.header);
+            }
+            blockClass = "notion-block-header";
+        } else if (block.title) {
+            if (block.title.includes('<') && block.title.includes('>')) {
+                content = block.title; // Use HTML as-is
+            } else {
+                content = frappe.utils.escape_html(block.title);
+            }
+            blockClass = "notion-block-title";
+        } else if (block.list) {
+            const items = block.list.split("\n").filter(function(item) { return item.trim(); });
+            content = "<ul class='notion-block-list'>";
+            items.forEach(function(item) {
+                content += "<li>" + frappe.utils.escape_html(item) + "</li>";
+            });
+            content += "</ul>";
+            isEditable = false;
+        } else if (block.text) {
+            // Check if it's a special block
+            if (block.block_type === "Todo") {
+                const checked = block.custom_todo_checked ? "checked" : "";
+                content = `
+                    <div class="notion-block-todo">
+                        <input type="checkbox" class="notion-todo-checkbox" ${checked} 
+                               onchange="window.toggleNotionTodo('${block.name}', this.checked)">
+                        <span>${frappe.utils.escape_html(block.text)}</span>
+                    </div>
+                `;
+                isEditable = false;
+            } else if (block.block_type === "Quote") {
+                if (block.text.includes('<') && block.text.includes('>')) {
+                    content = block.text; // Use HTML as-is
+                } else {
+                    content = frappe.utils.escape_html(block.text);
+                }
+                blockClass = "notion-block-quote";
+            } else if (block.block_type === "Divider" || block.text === "---") {
+                content = '<div class="notion-block-divider"></div>';
+                isEditable = false;
+            } else {
+                if (block.text.includes('<') && block.text.includes('>')) {
+                    content = block.text; // Use HTML as-is
+                } else {
+                    content = frappe.utils.escape_html(block.text);
+                }
+                blockClass = "notion-block-text";
+            }
+        } else if (block.js_code || block.python_code) {
+            const code = block.js_code || block.python_code;
+            const language = block.js_code ? "JavaScript" : "Python";
+            content = `
+                <div class="notion-code-wrapper">
+                    <div class="notion-code-header">
+                        <span class="code-language">${language}</span>
+                        <button class="notion-code-copy" onclick="window.copyNotionCode('${block.name}')" title="Copy code">
+                            <i class="fa fa-clipboard"></i> Copy
+                        </button>
+                    </div>
+                    <pre class="notion-block-code">${frappe.utils.escape_html(code)}</pre>
+                </div>
+            `;
+            isEditable = false;
+        } else if (block.photo) {
+            const width = block.custom_photo_width || 100; // Default 100% width
+            content = `
+                <div class="notion-photo-resizable" data-block-id="${block.name}">
+                    <img src="${block.photo}" 
+                         alt="Image" 
+                         class="notion-block-image"
+                         style="width: ${width}%;">
+                    <div class="notion-width-handle" data-block-id="${block.name}">
+                        <i class="fa fa-arrows-h"></i>
+                    </div>
+                    <div class="photo-width-info">${width}%</div>
+                </div>
+            `;
+            blockClass = "notion-block-image-wrapper";
+            isEditable = false;
+        } else if (block.attachment) {
+            const fileName = block.attachment.split('/').pop();
+            content = `<a href="${block.attachment}" target="_blank" class="btn btn-default btn-sm">
+                        <i class="fa fa-download"></i> ${fileName}
+                    </a>`;
+            isEditable = false;
+        } else if (block.link) {
+            content = `<a href="${block.link}" target="_blank" class="btn btn-default btn-sm">
+                        <i class="fa fa-external-link"></i> ${block.link}
+                    </a>`;
+            isEditable = false;
+        } else if (block.embed) {
+            const aspectClass = this.getAspectRatioClass(block.custom_aspect_ratio);
+            // Process the embed code to ensure it's properly formatted
+            let embedCode = block.embed;
+            
+            // Unescape HTML entities if needed
+            if (embedCode.includes('&lt;') || embedCode.includes('&gt;') || embedCode.includes('&quot;')) {
+                const textarea = document.createElement('textarea');
+                textarea.innerHTML = embedCode;
+                embedCode = textarea.value;
+            }
+            
+            // Add the necessary classes to the iframe for responsive sizing
+            if (embedCode.includes('<iframe')) {
+                embedCode = embedCode.replace('<iframe', '<iframe class="notion-embed-iframe"');
+                // Remove width/height attributes to let CSS handle it
+                embedCode = embedCode.replace(/width="[^"]*"/gi, '');
+                embedCode = embedCode.replace(/height="[^"]*"/gi, '');
+            }
+            
+            content = `
+                <div class="notion-block-embed-container" data-embed-content="${frappe.utils.escape_html(embedCode)}">
+                    <div class="notion-embed-toolbar">
+                        <button class="notion-embed-btn" onclick="window.openEmbedInNew('${block.name}')" title="Open in new tab">
+                            <i class="fa fa-external-link"></i> Open
+                        </button>
+                        <button class="notion-embed-btn" onclick="window.refreshEmbed('${block.name}')" title="Refresh">
+                            <i class="fa fa-refresh"></i>
+                        </button>
+                    </div>
+                    <div class="notion-embed-wrapper ${aspectClass}" data-block-id="${block.name}">
+                        <!-- Embed will be inserted here -->
+                    </div>
+                </div>
+            `;
+            isEditable = false;
+        }
+
+        const editableAttr = isEditable ? 'contenteditable="true"' : '';
+        const placeholder = isEditable ? `<div class="notion-block-placeholder">Type '/' for commands</div>` : '';
+        
+        return `
+            <div class="notion-block fade-in" data-block-id="${block.name}" data-block-index="${index}">
+                <div class="notion-block-controls">
+                    <div class="notion-drag-handle" draggable="true" title="Drag to reorder">
+                        <i class="fa fa-grip-vertical"></i>
+                    </div>
+                    <button class="notion-block-menu" data-block-id="${block.name}" title="Options">
+                        <i class="fa fa-ellipsis-h"></i>
+                    </button>
+                </div>
+                <div class="notion-block-content">
+                    <div class="notion-block-editable ${blockClass}" ${editableAttr} data-block-id="${block.name}" style="${!isEditable ? 'cursor: default;' : ''}">
+                        ${content}
+                    </div>
+                    ${!content && isEditable ? placeholder : ''}
+                    ${block.description ? `<div style="margin-top: 8px; padding: 8px; background: #f7f6f3; border-radius: 4px; font-size: 14px; color: #787774;">${frappe.utils.escape_html(block.description)}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    getAspectRatioClass(ratio) {
+        if (ratio === '1:1 (Square)') return 'embed-square';
+        if (ratio === '3:4 (Portrait)') return 'embed-portrait';
+        if (ratio === '4:5 (Instagram)') return 'embed-instagram';
+        if (ratio === 'A4 (Document)') return 'embed-a4';
+        if (ratio === 'Auto (Content Height)') return 'embed-auto';
+        return ''; // Default 16:9
+    }
+
+    getBlockType(block) {
+        if (block.header) return "Header";
+        if (block.title) return "Title";
+        if (block.list) return "List";
+        if (block.text) return block.block_type || "Text";
+        if (block.js_code) return "JS Code";
+        if (block.python_code) return "Python Code";
+        if (block.photo) return "Photo";
+        if (block.attachment) return "Attachment";
+        if (block.link) return "Link";
+        if (block.embed) return "Embed";
+        return "Unknown";
+    }
+
+    attachEventHandlers() {
+        var self = this;
+        
+        // Make editable blocks save on blur
+        $('.notion-block-editable[contenteditable="true"]').on('blur', function() {
+            const blockId = $(this).data('block-id');
+            const newContent = $(this).html(); // Use .html() instead of .text() to preserve formatting
+            const block = self.blocks.find(function(b) { return b.name === blockId; });
+            
+            if (!block) return;
+            
+            // Determine which field to update
+            let fieldToUpdate = null;
+            let updateData = {};
+            
+            if (block.header) {
+                fieldToUpdate = 'header';
+            } else if (block.title) {
+                fieldToUpdate = 'title';
+            } else if (block.text) {
+                fieldToUpdate = 'text';
+            }
+            
+            if (fieldToUpdate && block[fieldToUpdate] !== newContent) {
+                updateData[fieldToUpdate] = newContent;
+                
+                frappe.call({
+                    method: "frappe.client.set_value",
+                    args: {
+                        doctype: "Operation Guide DATA",
+                        name: blockId,
+                        fieldname: updateData
+                    },
+                    callback: function(r) {
+                        if (!r.exc) {
+                            block[fieldToUpdate] = newContent;
+                            frappe.show_alert({
+                                message: __('Saved'),
+                                indicator: 'green'
+                            }, 1);
+                        }
+                    }
+                });
+            }
+        });
+        
+        // Handle placeholder visibility
+        $('.notion-block-editable[contenteditable="true"]').on('focus', function() {
+            $(this).siblings('.notion-block-placeholder').hide();
+        }).on('blur', function() {
+            if (!$(this).text().trim()) {
+                $(this).siblings('.notion-block-placeholder').show();
+            }
+        });
+        
+        // Prevent formatting toolbar from stealing focus
+        $('.notion-formatting-toolbar').on('mousedown', function(e) {
+            e.preventDefault();
+        });
+        
+        // Handle dropdown changes without losing selection
+        $('.format-select').on('mousedown', function(e) {
+            e.preventDefault();
+        });
+        
+        $('.format-select').on('change', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        
+        // Initialize dropdown handlers after DOM is ready
+        setTimeout(function() {
+            // Font dropdown
+            $(document).on('change', '.format-select[title="Font"]', function(e) {
+                const value = $(this).val();
+                if (value && window.notionGuide) {
+                    window.notionGuide.changeFont(value);
+                }
+            });
+            
+            // Size dropdown
+            $(document).on('change', '.format-select[title="Size"]', function(e) {
+                const value = $(this).val();
+                if (value && window.notionGuide) {
+                    window.notionGuide.changeFontSize(value);
+                }
+            });
+        }, 500);
+        
+        // Bind block menu clicks
+        $('.notion-block-menu').on('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const blockId = $(this).data('block-id');
+            self.showBlockOptions(blockId, $(this));
+        });
+        
+        // Initialize drag and drop
+        this.initializeDragAndDrop();
+        
+        // Initialize photo width resizing
+        this.initializePhotoWidthResize();
+        
+        // Process embed iframes for security
+        this.processEmbedIframes();
+        
+        // Render embeds properly after a short delay
+        setTimeout(function() {
+            self.renderEmbeds();
+        }, 100);
+    }
+
+    renderEmbeds() {
+        var self = this;
+        
+        $('.notion-block-embed-container').each(function() {
+            const container = $(this);
+            const wrapper = container.find('.notion-embed-wrapper');
+            const embedContent = container.attr('data-embed-content');
+            
+            if (embedContent && wrapper.length) {
+                // Unescape the HTML
+                const textarea = document.createElement('textarea');
+                textarea.innerHTML = embedContent;
+                let unescapedContent = textarea.value;
+                
+                // Set the content
+                wrapper.html(unescapedContent);
+                
+                // Ensure iframe is properly styled
+                const iframe = wrapper.find('iframe');
+                if (iframe.length) {
+                    iframe.removeAttr('width').removeAttr('height');
+                    iframe.addClass('notion-embed-iframe');
+                }
+            }
+        });
+    }
+
+    processEmbedIframes() {
+        var self = this;
+        
+        $('.notion-embed-wrapper').each(function() {
+            const wrapper = $(this);
+            const embedContent = wrapper.html();
+            
+            // Debug log
+            console.log('Processing embed:', embedContent);
+            
+            // Check if content needs unescaping
+            if (embedContent.includes('&lt;iframe') || embedContent.includes('&amp;')) {
+                // Unescape HTML entities
+                const textarea = document.createElement('textarea');
+                textarea.innerHTML = embedContent;
+                const unescapedContent = textarea.value;
+                wrapper.html(unescapedContent);
+                console.log('Unescaped embed:', unescapedContent);
+            }
+            
+            // Find the iframe and ensure it has proper attributes
+            const iframe = wrapper.find('iframe');
+            if (iframe.length) {
+                // Remove any width/height that might interfere
+                iframe.removeAttr('width').removeAttr('height');
+                
+                // Add the responsive class
+                iframe.addClass('notion-embed-iframe');
+                
+                // For YouTube, ensure proper URL format
+                const src = iframe.attr('src');
+                if (src && src.includes('youtube.com/embed/')) {
+                    // Ensure HTTPS
+                    if (src.startsWith('http://')) {
+                        iframe.attr('src', src.replace('http://', 'https://'));
+                    }
+                    
+                    // Add YouTube parameters if not present
+                    if (!src.includes('?') && !src.includes('&')) {
+                        iframe.attr('src', src + '?rel=0&modestbranding=1');
+                    }
+                    
+                    console.log('YouTube iframe src:', iframe.attr('src'));
+                }
+            }
+        });
+    }
+
+    openEmbedInNew(blockId) {
+        const block = this.blocks.find(b => b.name === blockId);
+        if (!block || !block.embed) return;
+        
+        // Extract URL from iframe
+        const match = block.embed.match(/src=["']([^"']+)["']/);
+        if (match) {
+            window.open(match[1], '_blank');
+        }
+    }
+
+    refreshEmbed(blockId) {
+        const block = this.blocks.find(b => b.name === blockId);
+        if (!block || !block.embed) return;
+        
+        const embedWrapper = $(`.notion-block[data-block-id="${blockId}"] .notion-embed-wrapper`);
+        if (embedWrapper.length) {
+            // Debug: Log what we're trying to embed
+            console.log('Refreshing embed:', block.embed);
+            
+            // Clear and re-add the content
+            embedWrapper.empty();
+            
+            // Process the embed code
+            let embedCode = block.embed;
+            
+            // Ensure it's not escaped
+            if (embedCode.includes('&lt;') || embedCode.includes('&gt;')) {
+                const textarea = document.createElement('textarea');
+                textarea.innerHTML = embedCode;
+                embedCode = textarea.value;
+            }
+            
+            // Set the HTML
+            embedWrapper.html(embedCode);
+            
+            // Find the iframe and ensure it's properly styled
+            const iframe = embedWrapper.find('iframe');
+            if (iframe.length) {
+                iframe.removeAttr('width').removeAttr('height');
+                iframe.addClass('notion-embed-iframe');
+                
+                // Log the final iframe for debugging
+                console.log('Final iframe:', iframe[0].outerHTML);
+                console.log('Iframe src:', iframe.attr('src'));
+            }
+            
+            frappe.show_alert({
+                message: __('Embed refreshed'),
+                indicator: 'green'
+            }, 2);
+        }
+    }
+
+    initializePhotoWidthResize() {
+        var self = this;
+        
+        $('.notion-width-handle').off('mousedown').on('mousedown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const handle = $(this);
+            const blockId = handle.data('block-id');
+            const container = handle.closest('.notion-photo-resizable');
+            const img = container.find('.notion-block-image');
+            const wrapper = container.closest('.notion-block-editable');
+            
+            if (!img.length) return;
+            
+            let isResizing = true;
+            const startX = e.clientX;
+            const containerWidth = wrapper.width();
+            const startWidth = img.width();
+            const startPercent = (startWidth / containerWidth) * 100;
+            
+            // Add resizing class
+            container.addClass('resizing');
+            $('body').css('cursor', 'ew-resize');
+            
+            $(document).on('mousemove.resize', function(e) {
+                if (!isResizing) return;
+                
+                const deltaX = e.clientX - startX;
+                const deltaPercent = (deltaX / containerWidth) * 100;
+                let newPercent = Math.round(startPercent + deltaPercent);
+                
+                // Limit between 20% and 100%
+                newPercent = Math.max(20, Math.min(100, newPercent));
+                
+                // Apply new width
+                img.css('width', newPercent + '%');
+                container.find('.photo-width-info').text(newPercent + '%');
+            });
+            
+            $(document).on('mouseup.resize', function() {
+                if (!isResizing) return;
+                
+                isResizing = false;
+                $(document).off('.resize');
+                container.removeClass('resizing');
+                $('body').css('cursor', '');
+                
+                // Save new width percentage
+                const finalPercent = Math.round((img.width() / containerWidth) * 100);
+                self.savePhotoWidth(blockId, finalPercent);
+            });
+        });
+    }
+
+    savePhotoWidth(blockId, widthPercent) {
+        frappe.call({
+            method: "frappe.client.set_value",
+            args: {
+                doctype: "Operation Guide DATA",
+                name: blockId,
+                fieldname: {
+                    custom_photo_width: widthPercent
+                }
+            },
+            callback: function(r) {
+                if (!r.exc) {
+                    frappe.show_alert({
+                        message: __('Photo width saved'),
+                        indicator: 'green'
+                    }, 2);
+                }
+            },
+            error: function(r) {
+                // Field doesn't exist yet, that's okay
+                console.log('Photo width will be saved when custom field is added');
+            }
+        });
+    }
+
+    initializeImageResizing() {
+        // Removed - no longer needed for auto-fit images
+    }
+
+    saveImageDimensions(blockId, width, height) {
+        // Removed - no longer needed for auto-fit images
+    }
+
+    copyCode(blockId) {
+        const block = this.blocks.find(function(b) { return b.name === blockId; });
+        if (!block) return;
+        
+        const code = block.js_code || block.python_code;
+        if (!code) return;
+        
+        // Try modern clipboard API first
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(code).then(function() {
+                frappe.show_alert({
+                    message: __('Code copied to clipboard!'),
+                    indicator: 'green'
+                }, 3);
+                
+                // Visual feedback
+                const button = $(`[onclick="window.notionGuide.copyCode('${blockId}')"]`);
+                const originalText = button.html();
+                button.html('<i class="fa fa-check"></i> Copied!');
+                setTimeout(function() {
+                    button.html(originalText);
+                }, 2000);
+            }).catch(function() {
+                copyToClipboardFallback(code);
+            });
+        } else {
+            copyToClipboardFallback(code);
+        }
+        
+        function copyToClipboardFallback(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-999999px';
+            document.body.appendChild(textarea);
+            
+            try {
+                textarea.select();
+                document.execCommand('copy');
+                frappe.show_alert({
+                    message: __('Code copied to clipboard!'),
+                    indicator: 'green'
+                }, 3);
+                
+                // Visual feedback
+                const button = $(`[onclick="window.notionGuide.copyCode('${blockId}')"]`);
+                const originalText = button.html();
+                button.html('<i class="fa fa-check"></i> Copied!');
+                setTimeout(function() {
+                    button.html(originalText);
+                }, 2000);
+            } catch (err) {
+                frappe.show_alert({
+                    message: __('Failed to copy code'),
+                    indicator: 'red'
+                }, 3);
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+    }
+
+    initializeDragAndDrop() {
+        var self = this;
+        
+        $('.notion-drag-handle').on('dragstart', function(e) {
+            const block = $(this).closest('.notion-block');
+            block.addClass('dragging');
+            e.originalEvent.dataTransfer.effectAllowed = 'move';
+            e.originalEvent.dataTransfer.setData('text/plain', block.data('block-id'));
+        });
+        
+        $('.notion-drag-handle').on('dragend', function(e) {
+            $('.notion-block').removeClass('dragging');
+        });
+        
+        $('.notion-block').on('dragover', function(e) {
+            e.preventDefault();
+            const dragging = $('.dragging');
+            const blocks = $('.notion-block:not(.dragging)');
+            
+            const afterElement = self.getDragAfterElement(blocks, e.originalEvent.clientY);
+            
+            if (afterElement == null) {
+                $('#notion_blocks_container').append(dragging);
+            } else {
+                $(afterElement).before(dragging);
+            }
+        });
+        
+        $('.notion-block').on('drop', function(e) {
+            e.preventDefault();
+            self.saveBlockOrder();
+        });
+    }
+
+    getDragAfterElement(elements, y) {
+        const elementsArray = elements.toArray();
+        
+        return elementsArray.reduce(function(closest, child) {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    saveBlockOrder() {
+        var self = this;
+        
+        // Update creation field to force reordering
+        const blocks = $('.notion-block');
+        const promises = [];
+        
+        blocks.each(function(index) {
+            const blockId = $(this).data('block-id');
+            
+            promises.push(
+                frappe.call({
+                    method: "frappe.client.set_value",
+                    args: {
+                        doctype: "Operation Guide DATA",
+                        name: blockId,
+                        fieldname: {
+                            custom_sort_order: index
+                        }
+                    }
+                })
+            );
+        });
+        
+        Promise.all(promises).then(function() {
+            frappe.show_alert({
+                message: __('Block order updated'),
+                indicator: 'green'
+            }, 2);
+            self.loadExistingBlocks();
+        });
+    }
+
+    showBlockOptions(blockId, buttonElement) {
+        var self = this;
+        const block = this.blocks.find(function(b) { return b.name === blockId; });
+        if (!block) return;
+        
+        const blockType = this.getBlockType(block);
+        const blockIndex = this.blocks.indexOf(block);
+        
+        const options = [
+            {
+                label: '<i class="fa fa-arrow-up"></i> Move Up',
+                action: function() {
+                    self.moveBlockUp(blockId);
+                },
+                disabled: blockIndex === 0
+            },
+            {
+                label: '<i class="fa fa-arrow-down"></i> Move Down',
+                action: function() {
+                    self.moveBlockDown(blockId);
+                },
+                disabled: blockIndex === self.blocks.length - 1
+            },
+            {
+                label: '<i class="fa fa-edit"></i> Edit',
+                action: function() {
+                    self.editBlock(blockId);
+                }
+            }
+        ];
+        
+        // Add copy option for code blocks
+        if (block.js_code || block.python_code || block.text || block.header || block.title || block.list) {
+            options.push({
+                label: '<i class="fa fa-clipboard"></i> Copy Content',
+                action: function() {
+                    self.copyBlockContent(blockId);
+                }
+            });
+        }
+        
+        options.push(
+            {
+                label: '<i class="fa fa-copy"></i> Duplicate',
+                action: function() {
+                    self.duplicateBlock(blockId);
+                }
+            },
+            {
+                label: '<i class="fa fa-trash"></i> Delete',
+                action: function() {
+                    self.deleteBlock(blockId, blockType);
+                }
+            }
+        );
+        
+        // Remove any existing menu
+        $('.dropdown-menu.notion-block-dropdown').remove();
+        
+        // Create a simple dropdown menu
+        const menu = $('<div class="dropdown-menu notion-block-dropdown show" style="position: fixed; z-index: 1050;">');
+        
+        options.forEach(function(option) {
+            const item = $('<a class="dropdown-item" href="#" style="display: flex; align-items: center; gap: 8px;">')
+                .html(option.label)
+                .css({
+                    'opacity': option.disabled ? '0.5' : '1',
+                    'cursor': option.disabled ? 'not-allowed' : 'pointer'
+                })
+                .on('click', function(e) {
+                    e.preventDefault();
+                    if (!option.disabled) {
+                        menu.remove();
+                        option.action();
+                    }
+                });
+            menu.append(item);
+        });
+        
+        // Position the menu
+        const button = buttonElement || $(`.notion-block-menu[data-block-id="${blockId}"]`);
+        const offset = button.offset();
+        menu.css({
+            top: offset.top + button.outerHeight(),
+            left: offset.left
+        });
+        
+        $('body').append(menu);
+        
+        // Close menu when clicking outside
+        setTimeout(function() {
+            $(document).one('click', function() {
+                menu.remove();
+            });
+        }, 10);
+    }
+
+    editBlock(blockId) {
+        const block = this.blocks.find(function(b) { return b.name === blockId; });
+        if (!block) return;
+        
+        const blockType = this.getBlockType(block);
+        
+        // Handle special block types
+        if (blockType === "Todo") {
+            frappe.prompt([
+                {
+                    label: 'Todo Item',
+                    fieldname: 'todo_text',
+                    fieldtype: 'Data',
+                    reqd: 1,
+                    default: block.text
+                }
+            ], (values) => {
+                this.updateBlock(blockId, 'text', { text: values.todo_text });
+            }, '<i class="fa fa-check-square-o"></i> Edit Todo Item');
+            return;
+        } else if (blockType === "Quote") {
+            frappe.prompt([
+                {
+                    label: 'Quote Text',
+                    fieldname: 'quote_text',
+                    fieldtype: 'Small Text',
+                    reqd: 1,
+                    default: block.text
+                }
+            ], (values) => {
+                this.updateBlock(blockId, 'text', { text: values.quote_text });
+            }, '<i class="fa fa-quote-left"></i> Edit Quote');
+            return;
+        } else if (blockType === "JS Code" || blockType === "Python Code") {
+            const isJS = blockType === "JS Code";
+            frappe.prompt([
+                {
+                    label: 'Code',
+                    fieldname: 'code',
+                    fieldtype: 'Code',
+                    reqd: 1,
+                    default: isJS ? block.js_code : block.python_code
+                }
+            ], (values) => {
+                const fieldKey = isJS ? 'js_code' : 'python_code';
+                this.updateBlock(blockId, fieldKey, { [fieldKey]: values.code });
+            }, `<i class="fa fa-code"></i> Edit ${blockType}`);
+            return;
+        } else if (blockType === "Embed") {
+            frappe.prompt([
+                {
+                    label: 'Embed URL or Code',
+                    fieldname: 'embed_code',
+                    fieldtype: 'Long Text',
+                    reqd: 1,
+                    default: block.embed || '',
+                    description: 'Paste YouTube link, Canva embed code, or any embed/iframe code'
+                },
+                {
+                    label: 'Aspect Ratio',
+                    fieldname: 'aspect_ratio',
+                    fieldtype: 'Select',
+                    options: [
+                        '16:9 (Default)',
+                        '1:1 (Square)', 
+                        '3:4 (Portrait)',
+                        '4:5 (Instagram)',
+                        'A4 (Document)',
+                        'Auto (Content Height)'
+                    ],
+                    default: block.custom_aspect_ratio || '16:9 (Default)',
+                    description: 'Choose aspect ratio - use "A4" for Canva documents'
+                }
+            ], (values) => {
+                if (!values.embed_code || values.embed_code.trim() === '') {
+                    frappe.show_alert({
+                        message: __('Please provide embed code or URL'),
+                        indicator: 'red'
+                    }, 3);
+                    return;
+                }
+                frappe.call({
+                    method: "frappe.client.set_value",
+                    args: {
+                        doctype: "Operation Guide DATA",
+                        name: blockId,
+                        fieldname: {
+                            embed: this.processEmbedCode(values.embed_code),
+                            custom_aspect_ratio: values.aspect_ratio
+                        }
+                    },
+                    callback: (r) => {
+                        if (!r.exc) {
+                            frappe.show_alert({
+                                message: __('Embed updated'),
+                                indicator: 'green'
+                            }, 3);
+                            this.loadExistingBlocks();
+                        }
+                    }
+                });
+            }, '<i class="fa fa-play-circle"></i> Edit Embed');
+            return;
+        }
+        
+        // Get current value for standard types
+        let currentValue = "";
+        let fieldKey = "";
+        
+        if (block.header) {
+            currentValue = block.header;
+            fieldKey = "header";
+        } else if (block.title) {
+            currentValue = block.title;
+            fieldKey = "title";
+        } else if (block.list) {
+            currentValue = block.list;
+            fieldKey = "list";
+        } else if (block.text) {
+            currentValue = block.text;
+            fieldKey = "text";
+        } else if (block.photo) {
+            currentValue = block.photo;
+            fieldKey = "photo";
+        } else if (block.attachment) {
+            currentValue = block.attachment;
+            fieldKey = "attachment";
+        } else if (block.link) {
+            currentValue = block.link;
+            fieldKey = "link";
+        }
+        
+        if (fieldKey) {
+            this.openBlockInputDialog(blockType, blockId, currentValue);
+        }
+    }
+
+    duplicateBlock(blockId) {
+        var self = this;
+        const block = this.blocks.find(function(b) { return b.name === blockId; });
+        if (!block) return;
+        
+        const newBlock = Object.assign({}, block);
+        delete newBlock.name;
+        delete newBlock.creation;
+        delete newBlock.modified;
+        
+        frappe.call({
+            method: "frappe.client.insert",
+            args: { doc: Object.assign({ doctype: "Operation Guide DATA" }, newBlock) },
+            callback: function(r) {
+                if (!r.exc) {
+                    frappe.show_alert({
+                        message: __('Block duplicated'),
+                        indicator: 'green'
+                    }, 3);
+                    self.loadExistingBlocks();
+                }
+            }
+        });
+    }
+
+    deleteBlock(blockId, blockType) {
+        var self = this;
+        
+        frappe.confirm(
+            __('Are you sure you want to delete this {0} block?', [blockType.toLowerCase()]),
+            function() {
+                frappe.call({
+                    method: "frappe.client.delete",
+                    args: {
+                        doctype: "Operation Guide DATA",
+                        name: blockId
+                    },
+                    callback: function(r) {
+                        if (!r.exc) {
+                            frappe.show_alert({
+                                message: __('Block deleted'),
+                                indicator: 'green'
+                            }, 3);
+                            self.loadExistingBlocks();
+                        }
+                    }
+                });
+            }
+        );
+    }
+
+    moveBlockUp(blockId) {
+        var self = this;
+        const currentIndex = this.blocks.findIndex(function(b) { return b.name === blockId; });
+        
+        if (currentIndex > 0) {
+            // Add animation
+            const blockEl = $(`.notion-block[data-block-id="${blockId}"]`);
+            blockEl.addClass('moving-up');
+            
+            // Swap blocks in array
+            const temp = self.blocks[currentIndex];
+            self.blocks[currentIndex] = self.blocks[currentIndex - 1];
+            self.blocks[currentIndex - 1] = temp;
+            
+            // For now, just re-render without saving order
+            // When custom fields are added, we can save the order
+            setTimeout(function() {
+                self.renderBlocks();
+                self.updateOutline();
+                frappe.show_alert({
+                    message: __('Block moved up'),
+                    indicator: 'green'
+                }, 2);
+            }, 300);
+        }
+    }
+
+    moveBlockDown(blockId) {
+        var self = this;
+        const currentIndex = this.blocks.findIndex(function(b) { return b.name === blockId; });
+        
+        if (currentIndex < this.blocks.length - 1) {
+            // Add animation
+            const blockEl = $(`.notion-block[data-block-id="${blockId}"]`);
+            blockEl.addClass('moving-down');
+            
+            // Swap blocks in array
+            const temp = self.blocks[currentIndex];
+            self.blocks[currentIndex] = self.blocks[currentIndex + 1];
+            self.blocks[currentIndex + 1] = temp;
+            
+            // For now, just re-render without saving order
+            // When custom fields are added, we can save the order
+            setTimeout(function() {
+                self.renderBlocks();
+                self.updateOutline();
+                frappe.show_alert({
+                    message: __('Block moved down'),
+                    indicator: 'green'
+                }, 2);
+            }, 300);
+        }
+    }
+
+    copyBlockContent(blockId) {
+        const block = this.blocks.find(function(b) { return b.name === blockId; });
+        if (!block) return;
+        
+        let contentToCopy = '';
+        
+        if (block.header) contentToCopy = block.header;
+        else if (block.title) contentToCopy = block.title;
+        else if (block.list) contentToCopy = block.list;
+        else if (block.text) contentToCopy = block.text;
+        else if (block.js_code) contentToCopy = block.js_code;
+        else if (block.python_code) contentToCopy = block.python_code;
+        
+        if (contentToCopy) {
+            // Try modern clipboard API first
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(contentToCopy).then(function() {
+                    frappe.show_alert({
+                        message: __('Content copied to clipboard!'),
+                        indicator: 'green'
+                    }, 3);
+                }).catch(function() {
+                    // Fallback
+                    copyToClipboardFallback(contentToCopy);
+                });
+            } else {
+                // Fallback for older browsers
+                copyToClipboardFallback(contentToCopy);
+            }
+        }
+        
+        function copyToClipboardFallback(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-999999px';
+            document.body.appendChild(textarea);
+            
+            try {
+                textarea.select();
+                document.execCommand('copy');
+                frappe.show_alert({
+                    message: __('Content copied to clipboard!'),
+                    indicator: 'green'
+                }, 3);
+            } catch (err) {
+                frappe.show_alert({
+                    message: __('Failed to copy content'),
+                    indicator: 'red'
+                }, 3);
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+    }
+
+    toggleTodo(blockId, checked) {
+        // Try to save to custom field if it exists
+        frappe.call({
+            method: "frappe.client.set_value",
+            args: {
+                doctype: "Operation Guide DATA",
+                name: blockId,
+                fieldname: {
+                    custom_todo_checked: checked ? 1 : 0
+                }
+            },
+            callback: function(r) {
+                if (!r.exc) {
+                    frappe.show_alert({
+                        message: checked ? __('Task completed') : __('Task uncompleted'),
+                        indicator: 'green'
+                    }, 2);
+                }
+            },
+            error: function(r) {
+                // Field doesn't exist, just update UI
+                frappe.show_alert({
+                    message: checked ? __('Task completed') : __('Task uncompleted'),
+                    indicator: 'green'
+                }, 2);
+            }
+        });
+    }
+
+    filterBlocks() {
+        var self = this;
+        const searchTerm = this.searchTerm.toLowerCase();
+        
+        $('.notion-block').each(function() {
+            const blockContent = $(this).text().toLowerCase();
+            const matches = !searchTerm || blockContent.includes(searchTerm);
+            $(this).toggle(matches);
+        });
+    }
+
+    toggleEmptyState(show) {
+        const emptyState = document.getElementById('notion_empty_state');
+        const blocksContainer = document.getElementById('notion_blocks_container');
+        
+        if (show) {
+            emptyState.style.display = 'block';
+            blocksContainer.style.display = 'none';
+        } else {
+            emptyState.style.display = 'none';
+            blocksContainer.style.display = 'block';
+        }
+    }
+
+    updateOutline() {
+        const container = document.getElementById('notion_outline');
+        if (!container) return;
+        
+        const headers = this.blocks.filter(function(block) {
+            return block.header || block.title;
+        });
+        
+        if (headers.length === 0) {
+            container.innerHTML = '<p class="text-muted">No headers yet</p>';
+            return;
+        }
+        
+        let html = '';
+        headers.forEach(function(block) {
+            const level = block.header ? 'level-1' : 'level-2';
+            const text = block.header || block.title;
+            html += `
+                <div class="notion-outline-item ${level}" onclick="window.scrollToNotionBlock('${block.name}')">
+                    ${frappe.utils.escape_html(text)}
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+
+    scrollToBlock(blockId) {
+        const block = $(`[data-block-id="${blockId}"]`);
+        if (block.length) {
+            $('html, body').animate({
+                scrollTop: block.offset().top - 100
+            }, 300);
+            
+            // Highlight effect
+            block.css('background', '#e9f3ff');
+            setTimeout(function() {
+                block.css('background', '');
+            }, 1000);
+        }
+    }
+
+    exportToPDF() {
+        var self = this;
+        
+        frappe.show_alert({
+            message: __('Preparing PDF export...'),
+            indicator: 'blue'
+        }, 3);
+        
+        const printContent = this.generatePrintContent();
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        
+        printWindow.onload = function() {
+            setTimeout(function() {
+                printWindow.print();
+                frappe.show_alert({
+                    message: __('PDF export ready!'),
+                    indicator: 'green'
+                }, 3);
+            }, 500);
+        };
+    }
+
+    generatePrintContent() {
+        var self = this;
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${this.frm.doc.operation_guide_title || 'Operation Guide'}</title>
+                <style>
+                    @page { 
+                        size: A4; 
+                        margin: 20mm; 
+                    }
+                    
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 210mm;
+                        margin: 0 auto;
+                    }
+                    
+                    h1 { font-size: 32px; margin: 24px 0 16px; }
+                    h2 { font-size: 24px; margin: 20px 0 12px; }
+                    h3 { font-size: 20px; margin: 16px 0 8px; }
+                    
+                    .block {
+                        margin-bottom: 20px;
+                        page-break-inside: avoid;
+                    }
+                    
+                    /* Preserve text formatting */
+                    strong, b { font-weight: bold; }
+                    em, i { font-style: italic; }
+                    u { text-decoration: underline; }
+                    strike { text-decoration: line-through; }
+                    
+                    /* Preserve font sizes */
+                    font[size="1"], span[style*="font-size: 12px"] { font-size: 12px; }
+                    font[size="2"], span[style*="font-size: 16px"] { font-size: 16px; }
+                    font[size="3"], span[style*="font-size: 20px"] { font-size: 20px; }
+                    font[size="4"], span[style*="font-size: 24px"] { font-size: 24px; }
+                    font[size="5"], span[style*="font-size: 32px"] { font-size: 32px; }
+                    
+                    /* Preserve text alignment */
+                    [style*="text-align: left"] { text-align: left; }
+                    [style*="text-align: center"] { text-align: center; }
+                    [style*="text-align: right"] { text-align: right; }
+                    [style*="text-align: justify"] { text-align: justify; }
+                    
+                    /* Preserve lists */
+                    ul, ol {
+                        margin: 8px 0;
+                        padding-left: 24px;
+                    }
+                    
+                    li {
+                        margin: 4px 0;
+                    }
+                    
+                    /* Links */
+                    a {
+                        color: #2383e2;
+                        text-decoration: underline;
+                    }
+                    
+                    pre {
+                        background: #f5f5f5;
+                        padding: 16px;
+                        border-radius: 4px;
+                        overflow-x: auto;
+                        font-family: monospace;
+                    }
+                    
+                    blockquote {
+                        border-left: 3px solid #333;
+                        padding-left: 16px;
+                        margin: 16px 0;
+                        font-style: italic;
+                        color: #666;
+                    }
+                    
+                    img {
+                        max-width: 100%;
+                        height: auto;
+                    }
+                    
+                    .description {
+                        background: #f5f5f5;
+                        padding: 12px;
+                        border-radius: 4px;
+                        margin-top: 8px;
+                        font-size: 14px;
+                        font-style: italic;
+                        color: #666;
+                    }
+                    
+                    hr {
+                        border: none;
+                        border-top: 1px solid #ddd;
+                        margin: 20px 0;
+                    }
+                    
+                    .embed-notice {
+                        background: #f0f0f0;
+                        padding: 20px;
+                        border-radius: 4px;
+                        text-align: center;
+                        color: #666;
+                        font-style: italic;
+                    }
+                    
+                    /* Preserve highlight colors */
+                    [style*="background-color: rgb(254, 243, 199)"] { background-color: #fef3c7; }
+                    [style*="background-color: rgb(253, 230, 138)"] { background-color: #fde68a; }
+                    [style*="background-color: rgb(209, 250, 229)"] { background-color: #d1fae5; }
+                    [style*="background-color: rgb(219, 234, 254)"] { background-color: #dbeafe; }
+                    [style*="background-color: rgb(233, 213, 255)"] { background-color: #e9d5ff; }
+                    [style*="background-color: rgb(252, 231, 243)"] { background-color: #fce7f3; }
+                    [style*="background-color: rgb(254, 226, 226)"] { background-color: #fee2e2; }
+                </style>
+            </head>
+            <body>
+                <h1>${this.frm.doc.operation_guide_title || 'Operation Guide'}</h1>
+                <p style="color: #666;">Generated on ${new Date().toLocaleDateString()}</p>
+                <hr>
+        `;
+        
+        this.blocks.forEach(function(block) {
+            html += '<div class="block">';
+            
+            // For formatted content, preserve HTML
+            if (block.header) {
+                const headerContent = block.header.includes('<') && block.header.includes('>') 
+                    ? block.header 
+                    : `<h2>${frappe.utils.escape_html(block.header)}</h2>`;
+                html += headerContent;
+            } else if (block.title) {
+                const titleContent = block.title.includes('<') && block.title.includes('>') 
+                    ? `<h3>${block.title}</h3>` 
+                    : `<h3>${frappe.utils.escape_html(block.title)}</h3>`;
+                html += titleContent;
+            } else if (block.list) {
+                const items = block.list.split("\n").filter(function(item) { return item.trim(); });
+                html += '<ul>';
+                items.forEach(function(item) {
+                    html += `<li>${frappe.utils.escape_html(item)}</li>`;
+                });
+                html += '</ul>';
+            } else if (block.text) {
+                if (block.block_type === "Quote") {
+                    const quoteContent = block.text.includes('<') && block.text.includes('>') 
+                        ? block.text 
+                        : frappe.utils.escape_html(block.text);
+                    html += `<blockquote>${quoteContent}</blockquote>`;
+                } else if (block.block_type === "Todo") {
+                    const checked = block.custom_todo_checked ? '☑' : '☐';
+                    html += `<p>${checked} ${frappe.utils.escape_html(block.text)}</p>`;
+                } else if (block.text === "---") {
+                    html += '<hr>';
+                } else {
+                    // Preserve formatted text
+                    const textContent = block.text.includes('<') && block.text.includes('>') 
+                        ? block.text 
+                        : `<p>${frappe.utils.escape_html(block.text)}</p>`;
+                    html += textContent;
+                }
+            } else if (block.js_code || block.python_code) {
+                const code = block.js_code || block.python_code;
+                const language = block.js_code ? "JavaScript" : "Python";
+                html += `<pre>// ${language}\n${frappe.utils.escape_html(code)}</pre>`;
+            } else if (block.photo) {
+                html += `<img src="${block.photo}" alt="Image">`;
+            } else if (block.attachment) {
+                const fileName = block.attachment.split('/').pop();
+                html += `<p><strong>Attachment:</strong> ${fileName}</p>`;
+            } else if (block.link) {
+                html += `<p><strong>Link:</strong> <a href="${block.link}">${block.link}</a></p>`;
+            } else if (block.embed) {
+                html += `<div class="embed-notice">
+                    <p><strong>Embedded Content</strong></p>
+                    <p>This block contains embedded content that cannot be displayed in PDF format.</p>
+                    <p>Please view the online version to see this content.</p>
+                </div>`;
+            }
+            
+            if (block.description) {
+                html += `<div class="description">${frappe.utils.escape_html(block.description)}</div>`;
+            }
+            
+            html += '</div>';
+        });
+        
+        html += `
+                <hr>
+                <p style="text-align: center; color: #666; font-size: 12px;">
+                    Total ${this.blocks.length} blocks • Operation Guide
+                </p>
+            </body>
+            </html>
+        `;
+        
+        return html;
+    }
+}
+
+// Initialize on form load
+frappe.ui.form.on('Operation Guide', {
+    refresh: function(frm) {
+        // Create instance and make it globally available
+        if (!window.notionGuide) {
+            window.notionGuide = new NotionOperationGuideManager(frm);
+        }
+    },
+    
+    onload: function(frm) {
+        // Also initialize on load to ensure it's available early
+        if (!window.notionGuide) {
+            window.notionGuide = new NotionOperationGuideManager(frm);
+        }
+    }
+});
+
+// Test function to verify system is working
+window.testClick = function() {
+    frappe.show_alert('Click registered!', 'green');
+};
+
+// Test function to verify system is working
+window.testClick = function() {
+    frappe.show_alert('Click registered!', 'green');
+};
+
+// Global helper functions for onclick handlers
+window.notionGuide = null;
+
+// These need to be in the global scope for onclick to work
+window.toggleNotionSidebar = function() {
+    if (window.notionGuide) window.notionGuide.toggleSidebar();
+};
+
+window.updateNotionTitle = function(value) {
+    if (window.notionGuide) window.notionGuide.updateTitle(value);
+};
+
+window.showNotionHistory = function() {
+    if (window.notionGuide) window.notionGuide.showHistory();
+};
+
+window.exportNotionToPDF = function() {
+    if (window.notionGuide) window.notionGuide.exportToPDF();
+};
+
+window.quickAddNotionBlock = function(type) {
+    if (window.notionGuide) window.notionGuide.quickAddBlock(type);
+};
+
+window.addNewNotionBlock = function() {
+    if (window.notionGuide) window.notionGuide.addNewBlock();
+};
+
+window.showNotionBlockMenu = function() {
+    if (window.notionGuide) window.notionGuide.showBlockMenu();
+};
+
+window.showNotionBlockOptions = function(blockId) {
+    if (window.notionGuide) window.notionGuide.showBlockOptions(blockId);
+};
+
+window.toggleNotionTodo = function(blockId, checked) {
+    if (window.notionGuide) window.notionGuide.toggleTodo(blockId, checked);
+};
+
+window.scrollToNotionBlock = function(blockId) {
+    if (window.notionGuide) window.notionGuide.scrollToBlock(blockId);
+};
+
+window.copyNotionCode = function(blockId) {
+    if (window.notionGuide) window.notionGuide.copyCode(blockId);
+};
+
+window.openEmbedInNew = function(blockId) {
+    if (window.notionGuide) window.notionGuide.openEmbedInNew(blockId);
+};
+
+window.refreshEmbed = function(blockId) {
+    if (window.notionGuide) window.notionGuide.refreshEmbed(blockId);
+};
+
+// Formatting functions
+window.formatNotionText = function(command) {
+    if (window.notionGuide) window.notionGuide.formatText(command);
+};
+
+window.showNotionFontMenu = function() {
+    if (window.notionGuide) window.notionGuide.showFontMenu();
+};
+
+window.showNotionSizeMenu = function() {
+    if (window.notionGuide) window.notionGuide.showSizeMenu();
+};
+
+window.applyNotionFont = function(fontName) {
+    if (window.notionGuide) window.notionGuide.applyFont(fontName);
+};
+
+window.applyNotionSize = function(size) {
+    if (window.notionGuide) window.notionGuide.applySize(size);
+};
+
+window.changeNotionColor = function(color) {
+    if (window.notionGuide) window.notionGuide.changeColor(color);
+};
+
+window.showNotionHighlightColors = function() {
+    if (window.notionGuide) window.notionGuide.showHighlightColors();
+};
+
+window.setNotionHighlight = function(color) {
+    if (window.notionGuide) window.notionGuide.setHighlight(color);
+};
+
+window.insertNotionLink = function() {
+    if (window.notionGuide) window.notionGuide.insertLink();
+};
+
+window.clearNotionFormatting = function() {
+    if (window.notionGuide) window.notionGuide.clearFormatting();
+};

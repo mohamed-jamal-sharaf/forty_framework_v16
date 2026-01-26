@@ -1,0 +1,27 @@
+// Direct Doctype Files Access — use server query
+
+frappe.ui.form.on('Direct Doctype Files Access', {
+  onload(frm)  { set_link_query(frm); },
+  refresh(frm) { set_link_query(frm); },
+  dev_module(frm) {
+    frm.set_value('target_doctype', '');
+    set_link_query(frm);
+  },
+  validate(frm) {
+    const excluded = ['Direct Doctype Files Access', 'CODE EDITOR Pro'];
+    if (excluded.includes(frm.doc.target_doctype)) {
+      frappe.throw(__('This DocType is not allowed to be selected.'));
+    }
+  }
+});
+
+function set_link_query(frm) {
+  frm.set_query('target_doctype', () => {
+    return {
+      // Use your real dotted path:
+      query: 'frappe.dev_module.doctype.direct_doctype_files_access.direct_doctype_files_access.doctypes_query',
+      // Send the Module Def *title* as filter (your dev_module field already holds that)
+      filters: { module: frm.doc.dev_module || null }
+    };
+  });
+}

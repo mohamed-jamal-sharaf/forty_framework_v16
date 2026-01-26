@@ -1,0 +1,81 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-10-03 13:01:23.990458",
+ "default_view": "List",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "api_username",
+  "api_password",
+  "environment",
+  "default_language",
+  "default_sender",
+  "enable_sms"
+ ],
+ "fields": [
+  {
+   "fieldname": "api_username",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "API Username",
+   "reqd": 1
+  },
+  {
+   "fieldname": "api_password",
+   "fieldtype": "Data",
+   "label": "API Password "
+  },
+  {
+   "default": "Live",
+   "fieldname": "environment",
+   "fieldtype": "Select",
+   "label": "Environment",
+   "options": "Live"
+  },
+  {
+   "default": "Arabic",
+   "fieldname": "default_language",
+   "fieldtype": "Select",
+   "label": "Default Language",
+   "options": "Arabic"
+  },
+  {
+   "fieldname": "default_sender",
+   "fieldtype": "Link",
+   "label": "Default Sender",
+   "options": "SMS Sender ID"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_sms",
+   "fieldtype": "Check",
+   "label": "Enable SMS"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-11-11 17:17:46.600857",
+ "modified_by": "Administrator",
+ "module": "Core",
+ "name": "SMS Misr Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

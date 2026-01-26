@@ -1,0 +1,50 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-09-01 20:12:10.690216",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "soft_skills",
+  "help_options",
+  "percentage"
+ ],
+ "fields": [
+  {
+   "fieldname": "soft_skills",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Soft Skills",
+   "options": "Critical Thinking\nProblem Solving\nCreativity\nInnovation\nDecision Making\nAnalytical Thinking\nStrategic Thinking\nLearning Agility\nAttention to Detail\nAdaptability\nCommunication\nActive Listening\nPublic Speaking\nNegotiation\nPersuasion\nStorytelling\nNonverbal Communication\nCross-Cultural Communication\nEmpathy\nEmotional Intelligence\nTeamwork\nCollaboration\nLeadership\nDelegation\nConflict Resolution\nMotivation\nCoaching & Mentoring\nRelationship Building\nAccountability\nCultural Awareness\nTime Management\nPrioritization\nOrganization\nPlanning\nGoal Setting\nMultitasking\nStress Management\nProductivity\nWork Ethic\nReliability\nCustomer Service\nNetworking\nPresentation Skills\nBusiness Etiquette\nFlexibility\nPositive Attitude\nSelf-Motivation\nResilience\nLifelong Learning",
+   "reqd": 1
+  },
+  {
+   "fieldname": "percentage",
+   "fieldtype": "Rating",
+   "in_list_view": 1,
+   "label": "Percentage ",
+   "reqd": 1
+  },
+  {
+   "fieldname": "help_options",
+   "fieldtype": "Select",
+   "label": "? Help Options",
+   "options": "Critical Thinking\nProblem Solving\nCreativity\nInnovation\nDecision Making\nAnalytical Thinking\nStrategic Thinking\nLearning Agility\nAttention to Detail\nAdaptability\nCommunication\nActive Listening\nPublic Speaking\nNegotiation\nPersuasion\nStorytelling\nNonverbal Communication\nCross-Cultural Communication\nEmpathy\nEmotional Intelligence\nTeamwork\nCollaboration\nLeadership\nDelegation\nConflict Resolution\nMotivation\nCoaching & Mentoring\nRelationship Building\nAccountability\nCultural Awareness\nTime Management\nPrioritization\nOrganization\nPlanning\nGoal Setting\nMultitasking\nStress Management\nProductivity\nWork Ethic\nReliability\nCustomer Service\nNetworking\nPresentation Skills\nBusiness Etiquette\nFlexibility\nPositive Attitude\nSelf-Motivation\nResilience\nLifelong Learning"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-09-20 16:10:52.251246",
+ "modified_by": "Administrator",
+ "module": "Job Application Tracking System",
+ "name": "Soft Skills",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

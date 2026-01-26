@@ -1,0 +1,172 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-09-02 12:44:17.019202",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "dashboard_tab",
+  "from_to_date_section",
+  "from_date",
+  "column_break_tznc",
+  "to_date",
+  "section_break_ilyi",
+  "dashboard_html",
+  "folder_style_tab1",
+  "section_break_zgqu",
+  "folder_style_tab",
+  "folder_style_html",
+  "section_break_oata",
+  "total_applications",
+  "recent_applications_count",
+  "column_break_coea",
+  "general_applications_count",
+  "project_specific_count",
+  "tab_2_tab",
+  "table_style_html"
+ ],
+ "fields": [
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From (Date)"
+  },
+  {
+   "fieldname": "column_break_tznc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To (Date)"
+  },
+  {
+   "fieldname": "section_break_zgqu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "folder_style_html",
+   "fieldtype": "HTML",
+   "label": "folder_style_html"
+  },
+  {
+   "fieldname": "folder_style_tab",
+   "fieldtype": "HTML",
+   "label": "folder_style_tab"
+  },
+  {
+   "fieldname": "tab_2_tab",
+   "fieldtype": "Tab Break",
+   "label": "Report"
+  },
+  {
+   "fieldname": "table_style_html",
+   "fieldtype": "HTML",
+   "label": "Table Style HTML"
+  },
+  {
+   "fieldname": "dashboard_tab",
+   "fieldtype": "Tab Break",
+   "label": "Insight"
+  },
+  {
+   "fieldname": "dashboard_html",
+   "fieldtype": "HTML",
+   "label": "Dashboard HTML"
+  },
+  {
+   "fieldname": "total_applications",
+   "fieldtype": "Int",
+   "label": "Total Applications",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project_specific_count",
+   "fieldtype": "Int",
+   "label": "Project Specific Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "general_applications_count",
+   "fieldtype": "Int",
+   "label": "General Applications Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "recent_applications_count",
+   "fieldtype": "Int",
+   "label": "Recent Applications Count",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_oata",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_coea",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "folder_style_tab1",
+   "fieldtype": "Tab Break",
+   "label": "Explorer"
+  },
+  {
+   "fieldname": "section_break_ilyi",
+   "fieldtype": "Section Break"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "from_to_date_section",
+   "fieldtype": "Section Break",
+   "label": "Date Filter"
+  }
+ ],
+ "grid_page_length": 50,
+ "hide_toolbar": 1,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-09-09 19:17:05.304417",
+ "modified_by": "Administrator",
+ "module": "Job Application Tracking System",
+ "name": "Job Application Dashboard",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Job Application Role",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "All",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
