@@ -5,18 +5,19 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_jisp"
+  "uuu"
  ],
  "fields": [
   {
-   "fieldname": "section_break_jisp",
-   "fieldtype": "Section Break"
+   "fieldname": "uuu",
+   "fieldtype": "Data",
+   "label": "uuu"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-29 16:56:03.895397",
+ "modified": "2026-01-29 16:56:16.303423",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "uu",

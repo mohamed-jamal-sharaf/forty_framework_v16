@@ -14,7 +14,7 @@ class uu(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-
+		uuu: DF.Data | None
 	# end: auto-generated types
 
 	pass
