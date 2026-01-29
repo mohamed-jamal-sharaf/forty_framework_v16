@@ -42,15 +42,12 @@ app_include_js = [
 	"billing.bundle.js",
     # Custom Forty
     "/assets/frappe/js/custom_js/header.js",
-    "/assets/frappe/js/custom_js/child_btn.js",
-    "/assets/frappe/js/custom_js/fill_field.js",
- 
+    "/assets/frappe/js/custom_js/fill_field.js", 
 ]
 
 app_include_css = [
 	"desk.bundle.css",
 	"report.bundle.css",
-        "/assets/frappe/css/custom_global.css",
 ]
 app_include_icons = [
 	"/assets/frappe/icons/timeless/icons.svg",

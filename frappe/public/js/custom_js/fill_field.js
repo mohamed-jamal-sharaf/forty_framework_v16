@@ -1,4 +1,4 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2115, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
 
@@ -7,6 +7,7 @@ frappe.boot.user.can_read.forEach(element => {
         onload(frm) {
             if (frm.fields_dict.created_by && !frm.doc.created_by) {
                 frm.set_value("created_by", frappe.session.user);
+                frm.set_df_property("created_by", "read_only", 1)
                 frm.refresh_field('created_by');
             }
 

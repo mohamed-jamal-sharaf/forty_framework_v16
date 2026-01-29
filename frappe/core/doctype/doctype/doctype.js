@@ -1,60 +1,5 @@
 // Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
-
-
-frappe.boot.user.can_read.forEach(element => {
-	frappe.ui.form.on(element, {
-		refresh(frm) {
-			setTimeout(() => {
-				const tabWrapper = document.querySelector("#doctype-form_builder_tab");
-
-				if (tabWrapper) {
-					frm.add_custom_button("Standard Field", async function () {
-						try {
-							let generate = await frappe.call({
-								method: "frappe.api.custom_api.standard_field.auto_generate_fields",
-								args: {
-									doctype: frm.doctype,
-									docname: frm.doc.name
-								}
-							});
-
-							let fill = await frappe.call({
-								method: "frappe.api.custom_api.standard_field.fill_fields",
-								args: {
-									doctype: frm.doctype,
-									docname: frm.doc.name
-								}
-							});
-
-							if (generate.message.status == "added") {
-								frappe.show_alert({
-									message: "Standard Field Added Successfully",
-									indicator: "green"
-								}, 5);
-							} else {
-								frappe.show_alert({
-									message: "Standard Field Already Added",
-									indicator: "orange"
-								}, 5);
-							}
-
-
-							frm.reload_doc();
-
-						} catch (err) {
-							console.log(err);
-						}
-					})
-				}
-
-			}, 500)
-		},
-	});
-});
-
-
-
 frappe.ui.form.on("DocType", {
 	onload: function (frm) {
 		if (frm.is_new() && !frm.doc?.fields) {
@@ -147,6 +92,56 @@ frappe.ui.form.on("DocType", {
 		frm.trigger("setup_default_views");
 
 		render_form_builder(frm);
+
+
+
+		// forty
+
+			setTimeout(() => {
+				const tabWrapper = document.querySelector("#doctype-form_builder_tab");
+
+				if (tabWrapper) {
+					frm.add_custom_button("Standard Field", async function () {
+						try {
+							let generate = await frappe.call({
+								method: "frappe.api.custom_api.standard_field.auto_generate_fields",
+								args: {
+									doctype: frm.doctype,
+									docname: frm.doc.name
+								}
+							});
+
+							let fill = await frappe.call({
+								method: "frappe.api.custom_api.standard_field.fill_fields",
+								args: {
+									doctype: frm.doctype,
+									docname: frm.doc.name
+								}
+							});
+
+							if (generate.message.status == "added") {
+								frappe.show_alert({
+									message: "Standard Field Added Successfully",
+									indicator: "green"
+								}, 5);
+							} else {
+								frappe.show_alert({
+									message: "Standard Field Already Added",
+									indicator: "orange"
+								}, 5);
+							}
+
+
+							frm.reload_doc();
+
+						} catch (err) {
+							console.log(err);
+						}
+					})
+				}
+
+			}, 500)
+		
 	},
 
 	istable: (frm) => {

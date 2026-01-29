@@ -5,54 +5,46 @@ import frappe
 def auto_generate_fields(doctype,docname):
     doc = frappe.get_doc(doctype, docname)
     fields = [
-        {"fieldname": "section_break_2", "fieldtype": "Section Break"},
-        {"fieldname": "created_by", "fieldtype": "Data", "label": "Created By"},
-        {
-            "fieldname": "created_datetime",
-            "fieldtype": "Datetime",
-            "label": "Created DateTime",
-        },
-        {"fieldname": "column_break_ovuq", "fieldtype": "Column Break"},
-        {
-            "fieldname": "last_modified_by",
-            "fieldtype": "Data",
-            "label": "Last Modified By",
-        },
-        {
-            "fieldname": "modified_datetime",
-            "fieldtype": "Datetime",
-            "label": "Modified DateTime",
-        },
+    {
+        "fieldname": "section_break_2",
+        "fieldtype": "Section Break",
+        "label": "Metadata"
+    },
+    {
+        "fieldname": "created_by",
+        "fieldtype": "Data",
+        "label": "Created By",
+        "read_only": 1
+    },
+    {
+        "fieldname": "created_datetime",
+        "fieldtype": "Datetime",
+        "label": "Created DateTime",
+        "read_only": 1
+    },
+    {
+        "fieldname": "column_break_ovuq",
+        "fieldtype": "Column Break"
+    },
+    {
+        "fieldname": "last_modified_by",
+        "fieldtype": "Data",
+        "label": "Last Modified By",
+        "read_only": 1
+    },
+    {
+        "fieldname": "modified_datetime",
+        "fieldtype": "Datetime",
+        "label": "Modified DateTime",
+        "read_only": 1
+    },
+    {
+        "fieldname": "hide_banner",
+        "fieldtype": "Check",
+        "label": "Hide Banner",
+    }
+]
 
-        {"fieldname": "section_break_3", "fieldtype": "Section Break"},
-        {"fieldname": "grand_total", "fieldtype": "Float", "label": "Grand Total"},
-        {"fieldname": "column_break_meac", "fieldtype": "Column Break"},
-        {
-            "fieldname": "doctype_currency",
-            "fieldtype": "Data",
-            "label": "Doctype Currency",
-        },
-        {"fieldname": "column_break_4", "fieldtype": "Column Break"},
-        {
-            "fieldname": "total_paid_amount",
-            "fieldtype": "Float",
-            "label": "Total Paid Amount",
-        },
-        {"fieldname": "column_break_tznp", "fieldtype": "Column Break"},
-        {
-            "fieldname": "total_outstanding",
-            "fieldtype": "Float",
-            "label": "Total Outstanding ",
-        },
-        {"fieldname": "section_break_5", "fieldtype": "Section Break"},
-        {"fieldname": "footer", "fieldtype": "HTML", "label": "Footer"},
-        {
-            "default": "0",
-            "fieldname": "finance_doctype",
-            "fieldtype": "Check",
-            "label": "Finance Doctype",
-        },
-    ]
 
     existing_fieldnames = [f.fieldname for f in doc.fields]
     added = False

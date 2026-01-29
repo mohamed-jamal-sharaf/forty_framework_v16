@@ -1,0 +1,10 @@
+// new_file.js
+// Created: 2026-01-29 16:00:01
+
+frappe.ui.form.on('', {
+    refresh(frm) {
+
+
+
+    }
+});

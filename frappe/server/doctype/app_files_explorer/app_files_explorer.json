@@ -13,12 +13,14 @@
   "target_path",
   "column_break_npez",
   "file_path",
+  "section_break_vywj",
+  "my_code",
+  "list_of_files_tab",
   "section_break_rbku",
   "files_list_html",
+  "editor_tab",
   "section_break_cpex",
-  "editor_html",
-  "section_break_vywj",
-  "my_code"
+  "editor_html"
  ],
  "fields": [
   {
@@ -45,7 +47,6 @@
    "label": "File Path"
   },
   {
-   "collapsible": 1,
    "fieldname": "section_break_rbku",
    "fieldtype": "Section Break",
    "label": "List Of Files"
@@ -69,12 +70,23 @@
    "collapsible": 1,
    "fieldname": "section_break_vywj",
    "fieldtype": "Section Break",
-   "label": "Code"
+   "label": "Code",
+   "read_only": 1
   },
   {
    "fieldname": "my_code",
    "fieldtype": "Code",
    "label": "Code"
+  },
+  {
+   "fieldname": "list_of_files_tab",
+   "fieldtype": "Tab Break",
+   "label": "List Of Files"
+  },
+  {
+   "fieldname": "editor_tab",
+   "fieldtype": "Tab Break",
+   "label": "Code Editor"
   }
  ],
  "grid_page_length": 50,
@@ -82,7 +94,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-01-15 15:20:37.912934",
+ "modified": "2026-01-29 16:26:22.815748",
  "modified_by": "Administrator",
  "module": "Server",
  "name": "App Files Explorer",
