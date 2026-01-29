@@ -5,19 +5,25 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "ssss"
+  "ssss",
+  "aa"
  ],
  "fields": [
   {
    "fieldname": "ssss",
    "fieldtype": "Data",
    "label": "ssss"
+  },
+  {
+   "fieldname": "aa",
+   "fieldtype": "Attach",
+   "label": "aa"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-29 18:19:10.848004",
+ "modified": "2026-01-29 18:21:00.986338",
  "modified_by": "Administrator",
  "module": "Contacts",
  "name": "hhhhhhhh",

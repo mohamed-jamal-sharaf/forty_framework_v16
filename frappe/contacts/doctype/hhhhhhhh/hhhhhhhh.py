@@ -14,6 +14,7 @@ class hhhhhhhh(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		aa: DF.Attach | None
 		ssss: DF.Data | None
 	# end: auto-generated types
 
