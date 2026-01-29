@@ -14,7 +14,7 @@ class yyyy(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-
+		attach_szju: DF.Attach | None
 	# end: auto-generated types
 
 	pass

@@ -5,18 +5,18 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_fmwd"
+  "attach_szju"
  ],
  "fields": [
   {
-   "fieldname": "section_break_fmwd",
-   "fieldtype": "Section Break"
+   "fieldname": "attach_szju",
+   "fieldtype": "Attach"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-29 18:06:20.480429",
+ "modified": "2026-01-29 18:06:31.442433",
  "modified_by": "Administrator",
  "module": "Contacts",
  "name": "yyyy",
