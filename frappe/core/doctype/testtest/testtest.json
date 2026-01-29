@@ -5,19 +5,25 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "test"
+  "test",
+  "aaaa"
  ],
  "fields": [
   {
    "fieldname": "test",
    "fieldtype": "Data",
    "label": "TEST"
+  },
+  {
+   "fieldname": "aaaa",
+   "fieldtype": "Attach",
+   "label": "aaaa"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-29 17:52:59.509651",
+ "modified": "2026-01-29 17:54:49.605957",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "TESTTEST",

@@ -14,6 +14,7 @@ class TESTTEST(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		aaaa: DF.Attach | None
 		test: DF.Data | None
 	# end: auto-generated types
 
