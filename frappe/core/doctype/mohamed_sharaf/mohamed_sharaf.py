@@ -14,7 +14,7 @@ class MohamedSharaf(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-
+		name1: DF.Data | None
 	# end: auto-generated types
 
 	pass

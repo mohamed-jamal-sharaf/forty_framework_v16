@@ -5,18 +5,19 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_pcmd"
+  "name1"
  ],
  "fields": [
   {
-   "fieldname": "section_break_pcmd",
-   "fieldtype": "Section Break"
+   "fieldname": "name1",
+   "fieldtype": "Data",
+   "label": "name"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-30 14:20:33.542859",
+ "modified": "2026-01-30 14:20:45.748872",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Mohamed Sharaf",
