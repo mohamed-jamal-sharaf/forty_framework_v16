@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Server Access: فتح/تعديل ملفات الدوكتايب مباشرة من داخل Frappe
-يسمح بقراءة/حفظ ملفات: .py .js .json .md .html .css داخل مجلد doctype الفعلي.
-- يحمي من الخروج خارج المجلد (لا يسمح بـ .. أو /)
-- يعمل نسخة احتياطية تلقائيًا قبل كل حفظ في مجلد backups منظم حسب نوع الملف
-- يحتفظ بجميع النسخ الاحتياطية بدون حذف
+Server Access: Open/Edit DocType files directly from Frappe
+Allows reading/saving files: .py .js .json .md .html .css inside the doctype folder.
+- Protects against directory traversal (no .. or /)
+- Auto backup before each save in organized folders by extension
+- Keeps all backups without deletion
 """
 
 import os
@@ -13,20 +13,14 @@ import time
 import frappe
 from frappe.model.document import Document
 
-# الامتدادات المسموح تعديلها
+# Allowed extensions
 ALLOWED_EXT = {".py", ".js", ".json", ".md", ".html", ".css"}
 
-# مجلد النسخ الاحتياطية الرئيسي
+# Main backup folder name
 BACKUP_FOLDER_NAME = "backups"
 
 
-# -----------------------
-# DocType class
-# -----------------------
 class ServerAccess(Document):
-    # begin: auto-generated types
-    # This code is auto-generated. Do not modify anything in this block.
-
     from typing import TYPE_CHECKING
 
     if TYPE_CHECKING:
@@ -36,40 +30,23 @@ class ServerAccess(Document):
         filename: DF.Literal[None]
         last_op_log: DF.SmallText | None
         target_doctype: DF.Link | None
-    # end: auto-generated types
 
     pass
 
 
-# -----------------------
-# Helper: Check filename safety
-# -----------------------
 def _is_safe_filename(name: str) -> bool:
-    """تأكد أن الاسم آمن (بدون / أو \\ أو ..)."""
+    """Ensure filename is safe (no / or \\ or ..)."""
     return bool(name) and ("/" not in name) and ("\\" not in name) and (".." not in name)
 
 
-# -----------------------
-# Helper: Get file extension folder name
-# -----------------------
 def _get_extension_folder(filename: str) -> str:
-    """
-    إرجاع اسم المجلد حسب امتداد الملف
-    مثال: file.py → py, file.js → js
-    """
+    """Return folder name based on file extension."""
     _, ext = os.path.splitext(filename)
-    # إزالة النقطة من الامتداد
     return ext.lower().lstrip(".")
 
 
-# -----------------------
-# Helper: Get doctype folder path
-# -----------------------
 def _doctype_folder_path(doctype_name: str) -> str:
-    """
-    يرجّع المسار الفعلي لمجلد الدوكتايب:
-    apps/<app>/<app>/<module>/doctype/<scrubbed_doctype>
-    """
+    """Return the actual path to the doctype folder."""
     if not doctype_name:
         frappe.throw("Target DocType is required.")
 
@@ -89,14 +66,8 @@ def _doctype_folder_path(doctype_name: str) -> str:
     return path
 
 
-# -----------------------
-# Helper: Get or create backup folder for specific extension
-# -----------------------
 def _get_backup_folder(base_path: str, filename: str) -> str:
-    """
-    إنشاء مجلد backups/<extension> داخل مجلد الدوكتايب إذا لم يكن موجوداً
-    مثال: backups/py/, backups/js/, backups/json/
-    """
+    """Create backups/extension folder if not exists."""
     ext_folder = _get_extension_folder(filename)
     backup_folder = os.path.join(base_path, BACKUP_FOLDER_NAME, ext_folder)
     
@@ -106,16 +77,28 @@ def _get_backup_folder(base_path: str, filename: str) -> str:
     return backup_folder
 
 
-# -----------------------
-# API: list files
-# -----------------------
+def _format_file_size(size_bytes: int) -> str:
+    """Format file size to human readable."""
+    if size_bytes == 0:
+        return "0 B"
+    
+    units = ["B", "KB", "MB", "GB"]
+    unit_index = 0
+    size = float(size_bytes)
+    
+    while size >= 1024 and unit_index < len(units) - 1:
+        size /= 1024
+        unit_index += 1
+    
+    return f"{size:.1f} {units[unit_index]}"
+
+
 @frappe.whitelist()
 def list_doctype_files(target_doctype: str) -> list:
-    """إرجاع قائمة الملفات المسموح تعديلها داخل مجلد الدوكتايب."""
+    """Return list of editable files in doctype folder."""
     base = _doctype_folder_path(target_doctype)
     files = []
     for fn in sorted(os.listdir(base)):
-        # تجاهل مجلد النسخ الاحتياطية
         if fn == BACKUP_FOLDER_NAME:
             continue
         full = os.path.join(base, fn)
@@ -126,12 +109,9 @@ def list_doctype_files(target_doctype: str) -> list:
     return files
 
 
-# -----------------------
-# API: read file
-# -----------------------
 @frappe.whitelist()
 def read_doctype_file(target_doctype: str, filename: str) -> str:
-    """قراءة محتوى ملف داخل مجلد الدوكتايب."""
+    """Read file content from doctype folder."""
     if not _is_safe_filename(filename):
         frappe.throw("Invalid file name.")
 
@@ -145,21 +125,15 @@ def read_doctype_file(target_doctype: str, filename: str) -> str:
         return f.read()
 
 
-# -----------------------
-# API: Get non-frappe DocTypes
-# -----------------------
 @frappe.whitelist()
 def get_non_frappe_doctypes(doctype, txt, searchfield, start, page_len, filters):
-    """Get DocTypes that don't belong to the frappe app"""
-    
-    # Get all modules from frappe app
+    """Get DocTypes that don't belong to the frappe app."""
     frappe_modules = frappe.get_all(
         "Module Def",
         filters={"app_name": "frappe"},
         pluck="name"
     )
     
-    # Return DocTypes not in frappe modules
     return frappe.db.sql("""
         SELECT name, module
         FROM `tabDocType`
@@ -177,16 +151,9 @@ def get_non_frappe_doctypes(doctype, txt, searchfield, start, page_len, filters)
     })
 
 
-# -----------------------
-# API: save file with backup (organized by extension)
-# -----------------------
 @frappe.whitelist()
 def save_doctype_file(target_doctype: str, filename: str, content: str) -> str:
-    """
-    حفظ المحتوى في الملف المحدد مع إنشاء Backup تلقائي في مجلد منظم:
-    backups/<extension>/<filename>.bak.YYYYmmdd-HHMMSS
-    يحتفظ بجميع النسخ الاحتياطية بدون حذف.
-    """
+    """Save file with auto backup in organized folder."""
     if not _is_safe_filename(filename):
         frappe.throw("Invalid file name.")
 
@@ -196,11 +163,9 @@ def save_doctype_file(target_doctype: str, filename: str, content: str) -> str:
     if not os.path.isfile(full):
         frappe.throw("File not found.")
 
-    # الحصول على/إنشاء مجلد النسخ الاحتياطية حسب الامتداد
     ext_folder = _get_extension_folder(filename)
     backup_folder = _get_backup_folder(base, filename)
 
-    # إنشاء نسخة احتياطية في مجلد backups/<extension>
     ts = time.strftime("%Y%m%d-%H%M%S")
     backup_filename = f"{filename}.bak.{ts}"
     backup_path = os.path.join(backup_folder, backup_filename)
@@ -210,22 +175,18 @@ def save_doctype_file(target_doctype: str, filename: str, content: str) -> str:
     except Exception as e:
         frappe.throw(f"Failed to backup file: {e}")
 
-    # الكتابة في الملف
     try:
         with open(full, "w", encoding="utf-8", newline="\n") as f:
             f.write(content if content is not None else "")
     except Exception as e:
         frappe.throw(f"Failed to write file: {e}")
 
-    return f"✅ Saved. Backup: {BACKUP_FOLDER_NAME}/{ext_folder}/{backup_filename}"
+    return f"Saved. Backup: {BACKUP_FOLDER_NAME}/{ext_folder}/{backup_filename}"
 
 
-# -----------------------
-# API: list all backup folders
-# -----------------------
 @frappe.whitelist()
 def list_backup_folders(target_doctype: str) -> list:
-    """إرجاع قائمة مجلدات النسخ الاحتياطية (حسب الامتداد)."""
+    """Return list of backup folders by extension."""
     base = _doctype_folder_path(target_doctype)
     backup_base = os.path.join(base, BACKUP_FOLDER_NAME)
     
@@ -236,7 +197,6 @@ def list_backup_folders(target_doctype: str) -> list:
     for fn in sorted(os.listdir(backup_base)):
         full_path = os.path.join(backup_base, fn)
         if os.path.isdir(full_path):
-            # حساب عدد الملفات في كل مجلد
             file_count = len([f for f in os.listdir(full_path) if os.path.isfile(os.path.join(full_path, f))])
             folders.append({
                 "extension": fn,
@@ -247,12 +207,9 @@ def list_backup_folders(target_doctype: str) -> list:
     return folders
 
 
-# -----------------------
-# API: list backups for a file
-# -----------------------
 @frappe.whitelist()
 def list_file_backups(target_doctype: str, filename: str) -> list:
-    """إرجاع قائمة النسخ الاحتياطية لملف معين."""
+    """Return list of backups for a specific file."""
     if not _is_safe_filename(filename):
         frappe.throw("Invalid file name.")
 
@@ -282,12 +239,9 @@ def list_file_backups(target_doctype: str, filename: str) -> list:
     return backups
 
 
-# -----------------------
-# API: restore backup
-# -----------------------
 @frappe.whitelist()
 def restore_backup(target_doctype: str, filename: str, backup_filename: str) -> str:
-    """استعادة نسخة احتياطية معينة."""
+    """Restore a specific backup."""
     if not _is_safe_filename(filename) or not _is_safe_filename(backup_filename):
         frappe.throw("Invalid file name.")
 
@@ -301,7 +255,6 @@ def restore_backup(target_doctype: str, filename: str, backup_filename: str) -> 
     if not os.path.isfile(backup_file):
         frappe.throw("Backup file not found.")
     
-    # إنشاء نسخة احتياطية من الملف الحالي قبل الاستعادة
     ts = time.strftime("%Y%m%d-%H%M%S")
     pre_restore_backup = os.path.join(backup_folder, f"{filename}.pre-restore.{ts}")
     
@@ -311,15 +264,12 @@ def restore_backup(target_doctype: str, filename: str, backup_filename: str) -> 
     except Exception as e:
         frappe.throw(f"Failed to restore backup: {e}")
     
-    return f"✅ Restored from: {ext_folder}/{backup_filename}"
+    return f"Restored from: {ext_folder}/{backup_filename}"
 
 
-# -----------------------
-# API: read backup content
-# -----------------------
 @frappe.whitelist()
 def read_backup_file(target_doctype: str, filename: str, backup_filename: str) -> str:
-    """قراءة محتوى نسخة احتياطية معينة."""
+    """Read content of a specific backup."""
     if not _is_safe_filename(filename) or not _is_safe_filename(backup_filename):
         frappe.throw("Invalid file name.")
 
@@ -336,12 +286,9 @@ def read_backup_file(target_doctype: str, filename: str, backup_filename: str) -
         return f.read()
 
 
-# -----------------------
-# API: delete specific backup
-# -----------------------
 @frappe.whitelist()
 def delete_backup(target_doctype: str, filename: str, backup_filename: str) -> str:
-    """حذف نسخة احتياطية معينة."""
+    """Delete a specific backup."""
     if not _is_safe_filename(filename) or not _is_safe_filename(backup_filename):
         frappe.throw("Invalid file name.")
 
@@ -359,47 +306,10 @@ def delete_backup(target_doctype: str, filename: str, backup_filename: str) -> s
     except Exception as e:
         frappe.throw(f"Failed to delete backup: {e}")
     
-    return f"🗑️ Deleted: {ext_folder}/{backup_filename}"
-
-
-# -----------------------
-# Helper: Format file size
-# -----------------------
-def _format_file_size(size_bytes: int) -> str:
-    """تنسيق حجم الملف بشكل قابل للقراءة."""
-    if size_bytes == 0:
-        return "0 B"
-    
-    units = ["B", "KB", "MB", "GB"]
-    unit_index = 0
-    size = float(size_bytes)
-    
-    while size >= 1024 and unit_index < len(units) - 1:
-        size /= 1024
-        unit_index += 1
-    
-    return f"{size:.1f} {units[unit_index]}"
+    return f"Deleted: {ext_folder}/{backup_filename}"
 ```
 
-**New Folder Structure:**
+This is clean Python code without any special Unicode characters. The folder structure will be:
 ```
-doctype/
-├── my_doctype/
-│   ├── my_doctype.py
-│   ├── my_doctype.js
-│   ├── my_doctype.json
-│   ├── my_doctype.css
-│   └── backups/                        ← Main backup folder
-│       ├── py/                         ← Python backups
-│       │   ├── my_doctype.py.bak.20250131-143022
-│       │   ├── my_doctype.py.bak.20250131-150015
-│       │   └── my_doctype.py.pre-restore.20250131-160000
-│       ├── js/                         ← JavaScript backups
-│       │   ├── my_doctype.js.bak.20250131-144500
-│       │   └── my_doctype.js.bak.20250131-151230
-│       ├── json/                       ← JSON backups
-│       │   └── my_doctype.json.bak.20250131-145000
-│       ├── css/                        ← CSS backups
-│       │   └── my_doctype.css.bak.20250131-152000
-│       ├── html/                       ← HTML backups
-│       └── md/                         ← Markdown backups
+
+        file.css.bak.20250131-152000
