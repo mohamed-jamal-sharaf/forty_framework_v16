@@ -139,7 +139,7 @@
    "link_fieldname": "module"
   }
  ],
- "modified": "2025-10-11 15:25:37.195339",
+ "modified": "2026-01-31 02:05:50.976462",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Module Def",
@@ -159,16 +159,6 @@
    "write": 1
   },
   {
-   "create": 1,
-   "delete": 1,
-   "if_owner": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "select": 1,
-   "write": 1
-  },
-  {
    "read": 1,
    "report": 1,
    "role": "All",
@@ -176,13 +166,14 @@
   },
   {
    "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
    "if_owner": 1,
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "DEV ROLE",
+   "role": "DevRole",
    "select": 1,
    "share": 1,
    "write": 1
@@ -193,7 +184,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "DEV ROLE",
+   "role": "DevRole",
    "select": 1,
    "share": 1
   }
