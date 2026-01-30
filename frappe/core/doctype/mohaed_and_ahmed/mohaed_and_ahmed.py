@@ -14,6 +14,7 @@ class MOHAEDANDAHMED(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		attach_uefb: DF.Attach | None
 		ggg: DF.Data | None
 	# end: auto-generated types
 

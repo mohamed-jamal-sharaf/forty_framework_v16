@@ -5,19 +5,24 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "ggg"
+  "ggg",
+  "attach_uefb"
  ],
  "fields": [
   {
    "fieldname": "ggg",
    "fieldtype": "Data",
    "label": "ggg"
+  },
+  {
+   "fieldname": "attach_uefb",
+   "fieldtype": "Attach"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-30 14:58:10.739142",
+ "modified": "2026-01-30 14:59:04.858385",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "MOHAED AND AHMED",
