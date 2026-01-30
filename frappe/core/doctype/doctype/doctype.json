@@ -722,7 +722,6 @@
    "label": "App Name"
   },
   {
-   "fetch_from": "module.app_name",
    "fieldname": "app",
    "fieldtype": "Data",
    "label": "App"
@@ -804,7 +803,7 @@
    "link_fieldname": "document_type"
   }
  ],
- "modified": "2026-01-15 13:13:30.134200",
+ "modified": "2026-01-30 15:06:24.046867",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "DocType",
@@ -833,6 +832,7 @@
   },
   {
    "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
    "if_owner": 1,
