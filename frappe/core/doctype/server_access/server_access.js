@@ -747,40 +747,34 @@ def \${1:function_name}(\${2:args}):
 	});
 }
 
-// Main form script
+/// Main form script
 frappe.ui.form.on('Server Access', {
 	refresh(frm) {
+		// Filter out DocTypes from frappe app
+		frm.set_query('target_doctype', function () {
+			return {
+				query: 'frappe.core.doctype.server_access.server_access.get_non_frappe_doctypes'
+			};
+		});
+
 		// Add separate custom buttons (not under Actions)
-		
 		frm.add_custom_button('🔄 Reload Files', () => loadFiles(frm));
 		frm.add_custom_button('💾 Save File', () => saveFile(frm));
 		frm.add_custom_button('📝 Code Editor', () => openInCodeEditor(frm));
 		frm.add_custom_button('⌨️ Shortcuts', () => {
 			frappe.msgprint(`
-        <h4>Keyboard Shortcuts</h4>
-        <ul>
-          <li><b>Ctrl/Cmd + S</b> - Save file</li>
-          <li><b>Ctrl/Cmd + F</b> - Find</li>
-          <li><b>Ctrl/Cmd + P</b> - Quick Open</li>
-          <li><b>Shift + Alt + F</b> - Format Document</li>
-          <li><b>F1</b> - Command Palette</li>
-          <li><b>F11</b> - Toggle Fullscreen</li>
-          <li><b>ESC</b> - Exit Fullscreen</li>
-        </ul>
-      `, __('Keyboard Shortcuts'));
+                <h4>Keyboard Shortcuts</h4>
+                <ul>
+                    <li><b>Ctrl/Cmd + S</b> - Save file</li>
+                    <li><b>Ctrl/Cmd + F</b> - Find</li>
+                    <li><b>Ctrl/Cmd + P</b> - Quick Open</li>
+                    <li><b>Shift + Alt + F</b> - Format Document</li>
+                    <li><b>F1</b> - Command Palette</li>
+                    <li><b>F11</b> - Toggle Fullscreen</li>
+                    <li><b>ESC</b> - Exit Fullscreen</li>
+                </ul>
+            `, __('Keyboard Shortcuts'));
 		});
-        
-
-		refresh(frm) {
-    // Filter out DocTypes from frappe app
-    frm.set_query('target_doctype', function() {
-        return {
-            query: 'frappe.core.doctype.server_access.server_access.get_non_frappe_doctypes'
-        };
-    });
-    
-    // ... rest of your refresh code
-}
 
 		// Initialize editor HTML
 		if (frm.fields_dict.code_editor_html) {
