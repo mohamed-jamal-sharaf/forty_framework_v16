@@ -307,6 +307,3 @@ def delete_backup(target_doctype: str, filename: str, backup_filename: str) -> s
         frappe.throw(f"Failed to delete backup: {e}")
     
     return f"Deleted: {ext_folder}/{backup_filename}"
-```
-
-```

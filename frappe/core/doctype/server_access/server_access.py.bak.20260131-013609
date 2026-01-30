@@ -309,7 +309,4 @@ def delete_backup(target_doctype: str, filename: str, backup_filename: str) -> s
     return f"Deleted: {ext_folder}/{backup_filename}"
 ```
 
-This is clean Python code without any special Unicode characters. The folder structure will be:
 ```
-
-        file.css.bak.20250131-152000
