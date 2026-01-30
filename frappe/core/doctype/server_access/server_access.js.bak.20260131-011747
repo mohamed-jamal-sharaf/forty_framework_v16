@@ -1,4 +1,4 @@
-// Enhanced Server Access Form Script - Fixed Version with Fullscreen
+// Enhanced Server Access Form Script - Fixed Version with Fullscreen Mohamed Sharaf
 
 // Global configuration
 const SERVER_ACCESS_CONFIG = {
@@ -751,6 +751,7 @@ def \${1:function_name}(\${2:args}):
 frappe.ui.form.on('Server Access', {
 	refresh(frm) {
 		// Add separate custom buttons (not under Actions)
+		
 		frm.add_custom_button('🔄 Reload Files', () => loadFiles(frm));
 		frm.add_custom_button('💾 Save File', () => saveFile(frm));
 		frm.add_custom_button('📝 Code Editor', () => openInCodeEditor(frm));
@@ -768,6 +769,18 @@ frappe.ui.form.on('Server Access', {
         </ul>
       `, __('Keyboard Shortcuts'));
 		});
+        
+
+		refresh(frm) {
+    // Filter out DocTypes from frappe app
+    frm.set_query('target_doctype', function() {
+        return {
+            query: 'frappe.core.doctype.server_access.server_access.get_non_frappe_doctypes'
+        };
+    });
+    
+    // ... rest of your refresh code
+}
 
 		// Initialize editor HTML
 		if (frm.fields_dict.code_editor_html) {
