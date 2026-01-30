@@ -803,7 +803,7 @@
    "link_fieldname": "document_type"
   }
  ],
- "modified": "2026-01-30 15:06:24.046867",
+ "modified": "2026-01-30 23:49:05.116821",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "DocType",
@@ -852,6 +852,19 @@
    "role": "DEV ROLE",
    "select": 1,
    "share": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Mohamed Sharaf",
+   "select": 1,
+   "share": 1,
+   "write": 1
   }
  ],
  "route": "doctype",
