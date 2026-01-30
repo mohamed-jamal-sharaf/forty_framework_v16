@@ -6,6 +6,7 @@ Server Access: فتح/تعديل ملفات الدوكتايب مباشرة من
 - يعمل نسخة احتياطية تلقائيًا قبل كل حفظ
 - يحذف النسخ الاحتياطية القديمة ويبقي فقط آخر 3 نسخ
 """
+
 import os
 import shutil
 import time
@@ -20,10 +21,13 @@ ALLOWED_EXT = {".py", ".js", ".json", ".md", ".html", ".css"}
 # -----------------------
 class ServerAccess(Document):
     # begin: auto-generated types
+    # This code is auto-generated. Do not modify anything in this block.
+
     from typing import TYPE_CHECKING
 
     if TYPE_CHECKING:
         from frappe.types import DF
+
         file_content: DF.Code | None
         filename: DF.Literal[None]
         last_op_log: DF.SmallText | None
@@ -141,6 +145,46 @@ def read_doctype_file(target_doctype: str, filename: str) -> str:
 # -----------------------
 # API: save file with backup + cleanup
 # -----------------------
+
+
+@frappe.whitelist()
+def get_non_frappe_doctypes(doctype, txt, searchfield, start, page_len, filters):
+    """Get DocTypes that don't belong to the frappe app"""
+    
+    # Get all modules from frappe app
+    frappe_modules = frappe.get_all(
+        "Module Def",
+        filters={"app_name": "frappe"},
+        pluck="name"
+    )
+    
+    # Return DocTypes not in frappe modules
+    return frappe.db.sql("""
+        SELECT name, module
+        FROM `tabDocType`
+        WHERE 
+            module NOT IN %(frappe_modules)s
+            AND (name LIKE %(txt)s OR module LIKE %(txt)s)
+            AND istable = 0
+        ORDER BY name
+        LIMIT %(start)s, %(page_len)s
+    """, {
+        "frappe_modules": frappe_modules,
+        "txt": f"%{txt}%",
+        "start": start,
+        "page_len": page_len
+    })
+
+
+
+
+
+
+
+
+
+
+
 @frappe.whitelist()
 def save_doctype_file(target_doctype: str, filename: str, content: str) -> str:
     """
@@ -158,8 +202,9 @@ def save_doctype_file(target_doctype: str, filename: str, content: str) -> str:
         frappe.throw("File not found.")
 
     # إنشاء نسخة احتياطية
-    ts = time.strftime("%Y-%m-%d %H-%M-%S")
+    ts = time.strftime("%Y%m%d-%H%M%S")
     backup = f"{full}.bak.{ts}"
+
     try:
         shutil.copy2(full, backup)
     except Exception as e:

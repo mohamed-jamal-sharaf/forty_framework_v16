@@ -379,5 +379,27 @@ def _format_file_size(size_bytes: int) -> str:
         unit_index += 1
     
     return f"{size:.1f} {units[unit_index]}"
-        ← HTML backups
+```
+
+**New Folder Structure:**
+```
+doctype/
+├── my_doctype/
+│   ├── my_doctype.py
+│   ├── my_doctype.js
+│   ├── my_doctype.json
+│   ├── my_doctype.css
+│   └── backups/                        ← Main backup folder
+│       ├── py/                         ← Python backups
+│       │   ├── my_doctype.py.bak.20250131-143022
+│       │   ├── my_doctype.py.bak.20250131-150015
+│       │   └── my_doctype.py.pre-restore.20250131-160000
+│       ├── js/                         ← JavaScript backups
+│       │   ├── my_doctype.js.bak.20250131-144500
+│       │   └── my_doctype.js.bak.20250131-151230
+│       ├── json/                       ← JSON backups
+│       │   └── my_doctype.json.bak.20250131-145000
+│       ├── css/                        ← CSS backups
+│       │   └── my_doctype.css.bak.20250131-152000
+│       ├── html/                       ← HTML backups
 │       └── md/                         ← Markdown backups
