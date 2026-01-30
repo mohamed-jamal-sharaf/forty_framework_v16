@@ -14,6 +14,7 @@ class ASDF(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		aaa: DF.Attach | None
 		name1: DF.Data | None
 	# end: auto-generated types
 
