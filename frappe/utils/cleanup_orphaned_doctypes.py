@@ -40,14 +40,12 @@ def cleanup():
     
     existing_jsons = get_all_doctype_jsons()
     
-    # Get all non-custom DocTypes from database
     db_doctypes = frappe.get_all(
         "DocType",
         filters={"custom": 0},
         pluck="name"
     )
     
-    # Core doctypes to never delete
     protected = {
         "DocType", "DocField", "DocPerm", "Module Def", "Role", 
         "User", "Has Role", "DefaultValue", "Singles", "DocType Link",
@@ -60,7 +58,7 @@ def cleanup():
             orphaned.append(dt)
     
     if not orphaned:
-        print("✓ No orphaned DocTypes found.")
+        print("No orphaned DocTypes found.")
         return []
     
     print(f"Found {len(orphaned)} orphaned DocTypes: {orphaned}")
@@ -70,15 +68,12 @@ def cleanup():
         try:
             table_name = f"tab{dt}"
             
-            # Drop table if exists
             if frappe.db.table_exists(table_name):
                 print(f"  Dropping table: {table_name}")
                 frappe.db.sql_ddl(f"DROP TABLE IF EXISTS `{table_name}`")
             
-            # Delete from Singles
             frappe.db.sql("DELETE FROM `tabSingles` WHERE doctype=%s", dt)
             
-            # Delete DocType record
             if frappe.db.exists("DocType", dt):
                 print(f"  Deleting DocType: {dt}")
                 frappe.db.delete("DocType", dt)
@@ -89,6 +84,6 @@ def cleanup():
     
     if deleted:
         frappe.db.commit()
-        print(f"✓ Deleted {len(deleted)} orphaned DocTypes: {deleted}")
+        print(f"Deleted {len(deleted)} orphaned DocTypes: {deleted}")
     
     return deleted
