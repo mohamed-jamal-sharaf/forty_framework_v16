@@ -803,7 +803,7 @@
    "link_fieldname": "document_type"
   }
  ],
- "modified": "2026-01-31 01:31:40.682300",
+ "modified": "2026-01-31 01:44:41.948423",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "DocType",
@@ -812,21 +812,26 @@
  "permissions": [
   {
    "create": 1,
-   "email": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "write": 1
-  },
-  {
-   "create": 1,
    "delete": 1,
    "email": 1,
    "print": 1,
    "read": 1,
    "report": 1,
    "role": "Administrator",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Mohamed Sharaf",
+   "select": 1,
    "share": 1,
    "write": 1
   },
@@ -839,7 +844,8 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "DEV ROLE",
+   "role": "DevRole",
+   "select": 1,
    "share": 1,
    "write": 1
   },
@@ -849,19 +855,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "DEV ROLE",
-   "select": 1,
-   "share": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Mohamed Sharaf",
+   "role": "DevRole",
    "select": 1,
    "share": 1,
    "write": 1
