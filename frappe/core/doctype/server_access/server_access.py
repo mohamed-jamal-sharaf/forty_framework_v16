@@ -145,6 +145,46 @@ def read_doctype_file(target_doctype: str, filename: str) -> str:
 # -----------------------
 # API: save file with backup + cleanup
 # -----------------------
+
+
+@frappe.whitelist()
+def get_non_frappe_doctypes(doctype, txt, searchfield, start, page_len, filters):
+    """Get DocTypes that don't belong to the frappe app"""
+    
+    # Get all modules from frappe app
+    frappe_modules = frappe.get_all(
+        "Module Def",
+        filters={"app_name": "frappe"},
+        pluck="name"
+    )
+    
+    # Return DocTypes not in frappe modules
+    return frappe.db.sql("""
+        SELECT name, module
+        FROM `tabDocType`
+        WHERE 
+            module NOT IN %(frappe_modules)s
+            AND (name LIKE %(txt)s OR module LIKE %(txt)s)
+            AND istable = 0
+        ORDER BY name
+        LIMIT %(start)s, %(page_len)s
+    """, {
+        "frappe_modules": frappe_modules,
+        "txt": f"%{txt}%",
+        "start": start,
+        "page_len": page_len
+    })
+
+
+
+
+
+
+
+
+
+
+
 @frappe.whitelist()
 def save_doctype_file(target_doctype: str, filename: str, content: str) -> str:
     """
