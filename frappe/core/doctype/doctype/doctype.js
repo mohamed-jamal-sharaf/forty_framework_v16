@@ -35,21 +35,41 @@ frappe.ui.form.on("DocType", {
     
 
 	refresh: function (frm) {
+		// ══════════════════════════════════════════════════════════════
+		// ADMIN USERS & ROLES - Capital Project
+		// ══════════════════════════════════════════════════════════════
+		const ADMIN_USERS = ["Administrator", "mohamed.sharaf.secured@gmail.com"];
+		const ADMIN_ROLES = ["DevRole"];
+		
+		// Check if user is admin by email OR has admin role
+		const is_admin_user = ADMIN_USERS.includes(frappe.session.user);
+		const has_admin_role = ADMIN_ROLES.some(role => frappe.user_roles.includes(role));
+		const is_admin = is_admin_user || has_admin_role;
+		// ══════════════════════════════════════════════════════════════
+
 		frm.set_query("role", "permissions", function (doc) {
-			if (doc.custom && frappe.session.user != "Administrator") {
+			if (doc.custom && !is_admin) {
 				return {
 					query: "frappe.core.doctype.role.role.role_query",
 				};
 			}
 		});
 
-		if (frappe.session.user !== "Administrator" || !frappe.boot.developer_mode) {
+		if (!is_admin || !frappe.boot.developer_mode) {
 			if (frm.is_new()) {
-				frm.set_value("custom", 1);
+				// Set custom = 0 by default
+				frm.set_value("custom", 0);
 			}
 			frm.toggle_enable("custom", 0);
 			frm.toggle_enable("is_virtual", 0);
 			frm.toggle_enable("beta", 0);
+		}
+
+		// Allow admin users to edit custom field
+		if (is_admin) {
+			frm.toggle_enable("custom", 1);
+			frm.toggle_enable("is_virtual", 1);
+			frm.toggle_enable("beta", 1);
 		}
 
 		if (!frm.is_new() && !frm.doc.istable) {

@@ -1,22 +1,112 @@
 // Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
+frappe.ui.form.on("DocType", {
+	onload: function (frm) {
+		if (frm.is_new() && !frm.doc?.fields) {
+			frappe.listview_settings["DocType"].new_doctype_dialog();
+		}
+		frm.call("check_pending_migration");
+	},
+
+	before_save: function (frm) {
+		let form_builder = frappe.form_builder;
+		if (form_builder?.store) {
+			let fields = form_builder.store.update_fields();
+
+			// if fields is a string, it means there is an error
+			if (typeof fields === "string") {
+				frappe.throw(fields);
+			}
+		}
+	},
+
+	after_save: function (frm) {
+		if (
+			frappe.form_builder &&
+			frappe.form_builder.doctype === frm.doc.name &&
+			frappe.form_builder.store
+		) {
+			frappe.form_builder.store.fetch();
+		}
+	},
 
 
-frappe.boot.user.can_read.forEach(element => {
-	frappe.ui.form.on(element, {
-		before_save(frm) {
-			if (frm.fields_dict.created_by && !frm.doc.created_by)
-				frm.set_value("created_by", frappe.session.user);
-			if (frm.fields_dict.created_by && !frm.doc.created_datetime)
-				frm.set_value('created_datetime', frappe.datetime.now_datetime());
 
-			if (frm.fields_dict.last_modified_by)
-				frm.set_value('last_modified_by', frappe.session.user)
-			if (frm.fields_dict.modified_datetime)
-				frm.set_value('modified_datetime', frappe.datetime.now_datetime())
-		},
+    
 
-		refresh(frm) {
+	refresh: function (frm) {
+		frm.set_query("role", "permissions", function (doc) {
+			if (doc.custom && frappe.session.user != "Administrator") {
+				return {
+					query: "frappe.core.doctype.role.role.role_query",
+				};
+			}
+		});
+
+		if (frappe.session.user !== "Administrator" || !frappe.boot.developer_mode) {
+			if (frm.is_new()) {
+				frm.set_value("custom", 1);
+			}
+			frm.toggle_enable("custom", 0);
+			frm.toggle_enable("is_virtual", 0);
+			frm.toggle_enable("beta", 0);
+		}
+
+		if (!frm.is_new() && !frm.doc.istable) {
+			const button_text = frm.doc.issingle
+				? __("Go to {0}", [__(frm.doc.name)])
+				: __("Go to {0} List", [__(frm.doc.name)]);
+			frm.add_custom_button(button_text, () => {
+				window.open(`/app/${frappe.router.slug(frm.doc.name)}`);
+			});
+		}
+
+
+
+
+
+
+
+		const customize_form_link = `<a href="/app/customize-form">${__("Customize Form")}</a>`;
+		if (!frappe.boot.developer_mode && !frm.doc.custom) {
+			// make the document read-only
+			frm.set_read_only();
+			frm.dashboard.clear_comment();
+			frm.dashboard.add_comment(
+				__("DocTypes cannot be modified, please use {0} instead", [customize_form_link]),
+				"blue",
+				true
+			);
+		} else if (frappe.boot.developer_mode) {
+			frm.dashboard.clear_comment();
+			let msg = __(
+				"This site is running in developer mode. Any change made here will be updated in code."
+			);
+			frm.dashboard.add_comment(msg, "yellow", true);
+		}
+
+		if (frm.is_new()) {
+			frm.events.set_default_permission(frm);
+			frm.set_value("default_view", "List");
+		} else {
+			frm.toggle_enable("engine", 0);
+		}
+
+		// set label for "In List View" for child tables
+		frm.get_docfield("fields", "in_list_view").label = frm.doc.istable
+			? __("In Grid View")
+			: __("In List View");
+
+		frm.cscript.autoname(frm);
+		frm.cscript.set_naming_rule_description(frm);
+		frm.trigger("setup_default_views");
+
+		render_form_builder(frm);
+
+
+
+		// forty
+
 			setTimeout(() => {
 				const tabWrapper = document.querySelector("#doctype-form_builder_tab");
 
@@ -61,104 +151,7 @@ frappe.boot.user.can_read.forEach(element => {
 				}
 
 			}, 500)
-		},
-	});
-});
-
-
-
-frappe.ui.form.on("DocType", {
-	onload: function (frm) {
-		if (frm.is_new() && !frm.doc?.fields) {
-			frappe.listview_settings["DocType"].new_doctype_dialog();
-		}
-		frm.call("check_pending_migration");
-	},
-
-	before_save: function (frm) {
-		let form_builder = frappe.form_builder;
-		if (form_builder?.store) {
-			let fields = form_builder.store.update_fields();
-
-			// if fields is a string, it means there is an error
-			if (typeof fields === "string") {
-				frappe.throw(fields);
-			}
-		}
-	},
-
-	after_save: function (frm) {
-		if (
-			frappe.form_builder &&
-			frappe.form_builder.doctype === frm.doc.name &&
-			frappe.form_builder.store
-		) {
-			frappe.form_builder.store.fetch();
-		}
-	},
-
-	refresh: function (frm) {
-		frm.set_query("role", "permissions", function (doc) {
-			if (doc.custom && frappe.session.user != "Administrator") {
-				return {
-					query: "frappe.core.doctype.role.role.role_query",
-				};
-			}
-		});
-
-		if (frappe.session.user !== "Administrator" || !frappe.boot.developer_mode) {
-			if (frm.is_new()) {
-				frm.set_value("custom", 1);
-			}
-			frm.toggle_enable("custom", 0);
-			frm.toggle_enable("is_virtual", 0);
-			frm.toggle_enable("beta", 0);
-		}
-
-		if (!frm.is_new() && !frm.doc.istable) {
-			const button_text = frm.doc.issingle
-				? __("Go to {0}", [__(frm.doc.name)])
-				: __("Go to {0} List", [__(frm.doc.name)]);
-			frm.add_custom_button(button_text, () => {
-				window.open(`/app/${frappe.router.slug(frm.doc.name)}`);
-			});
-		}
-
-		const customize_form_link = `<a href="/app/customize-form">${__("Customize Form")}</a>`;
-		if (!frappe.boot.developer_mode && !frm.doc.custom) {
-			// make the document read-only
-			frm.set_read_only();
-			frm.dashboard.clear_comment();
-			frm.dashboard.add_comment(
-				__("DocTypes cannot be modified, please use {0} instead", [customize_form_link]),
-				"blue",
-				true
-			);
-		} else if (frappe.boot.developer_mode) {
-			frm.dashboard.clear_comment();
-			let msg = __(
-				"This site is running in developer mode. Any change made here will be updated in code."
-			);
-			frm.dashboard.add_comment(msg, "yellow", true);
-		}
-
-		if (frm.is_new()) {
-			frm.events.set_default_permission(frm);
-			frm.set_value("default_view", "List");
-		} else {
-			frm.toggle_enable("engine", 0);
-		}
-
-		// set label for "In List View" for child tables
-		frm.get_docfield("fields", "in_list_view").label = frm.doc.istable
-			? __("In Grid View")
-			: __("In List View");
-
-		frm.cscript.autoname(frm);
-		frm.cscript.set_naming_rule_description(frm);
-		frm.trigger("setup_default_views");
-
-		render_form_builder(frm);
+		
 	},
 
 	istable: (frm) => {
