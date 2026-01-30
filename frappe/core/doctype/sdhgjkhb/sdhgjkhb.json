@@ -5,18 +5,19 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_ertj"
+  "aaa"
  ],
  "fields": [
   {
-   "fieldname": "section_break_ertj",
-   "fieldtype": "Section Break"
+   "fieldname": "aaa",
+   "fieldtype": "Data",
+   "label": "aaa"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-30 13:10:28.118548",
+ "modified": "2026-01-30 13:11:11.513740",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "sdhgjkhb",

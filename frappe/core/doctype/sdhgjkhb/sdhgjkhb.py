@@ -14,7 +14,7 @@ class sdhgjkhb(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-
+		aaa: DF.Data | None
 	# end: auto-generated types
 
 	pass
