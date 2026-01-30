@@ -30,6 +30,10 @@ frappe.ui.form.on("DocType", {
 		}
 	},
 
+
+
+    
+
 	refresh: function (frm) {
 		frm.set_query("role", "permissions", function (doc) {
 			if (doc.custom && frappe.session.user != "Administrator") {
