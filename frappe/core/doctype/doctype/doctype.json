@@ -196,7 +196,7 @@
    "label": "Track Views"
   },
   {
-   "default": "1",
+   "default": "0",
    "fieldname": "custom",
    "fieldtype": "Check",
    "label": "Custom?"
@@ -803,7 +803,7 @@
    "link_fieldname": "document_type"
   }
  ],
- "modified": "2026-01-30 23:49:05.116821",
+ "modified": "2026-01-31 01:31:40.682300",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "DocType",
