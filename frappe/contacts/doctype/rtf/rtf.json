@@ -1,25 +1,25 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2026-01-30 23:41:24.249137",
+ "creation": "2026-01-30 22:44:45.554823",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_7kyf"
+  "section_break_ia2i"
  ],
  "fields": [
   {
-   "fieldname": "section_break_7kyf",
+   "fieldname": "section_break_ia2i",
    "fieldtype": "Section Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-30 23:41:24.249137",
+ "modified": "2026-01-30 22:44:45.554823",
  "modified_by": "Administrator",
  "module": "Contacts",
- "name": "test",
+ "name": "rtf",
  "owner": "Administrator",
  "permissions": [
   {
