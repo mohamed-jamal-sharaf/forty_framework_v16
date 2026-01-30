@@ -196,7 +196,7 @@
    "label": "Track Views"
   },
   {
-   "default": "1",
+   "default": "0",
    "fieldname": "custom",
    "fieldtype": "Check",
    "label": "Custom?"
