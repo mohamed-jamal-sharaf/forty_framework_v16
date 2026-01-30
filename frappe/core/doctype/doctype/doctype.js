@@ -57,6 +57,12 @@ frappe.ui.form.on("DocType", {
 			});
 		}
 
+
+
+
+
+
+
 		const customize_form_link = `<a href="/app/customize-form">${__("Customize Form")}</a>`;
 		if (!frappe.boot.developer_mode && !frm.doc.custom) {
 			// make the document read-only
