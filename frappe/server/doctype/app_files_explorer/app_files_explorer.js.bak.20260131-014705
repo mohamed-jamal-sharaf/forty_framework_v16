@@ -1038,27 +1038,14 @@ function show_rename_dialog(frm) {
 // App Loading Functions
 // =====================================================
 
-// =====================================================
-// App Loading Functions
-// =====================================================
-
 async function ensure_apps_loaded(frm) {
     try {
         const res = await frappe.call({
             method: 'frappe.api.app_file_access.get_installed_apps'
         });
 
-        let apps = res.message || [];
+        const apps = res.message || [];
         console.log("[DEBUG] Apps loaded:", apps);
-
-        // Filter out 'frappe' app if user is not Administrator or authorized email
-        const isAdmin = frappe.session.user === "Administrator";
-        const isAuthorizedEmail = frappe.session.user === "mohamed.sharaf.secured@gmail.com";
-
-        if (!isAdmin && !isAuthorizedEmail) {
-            apps = apps.filter(app => app.toLowerCase() !== 'frappe');
-            console.log("[DEBUG] Filtered apps (frappe hidden):", apps);
-        }
 
         if (apps && apps.length > 0) {
             frm.set_df_property('app_name', 'options', apps.join('\n'));
