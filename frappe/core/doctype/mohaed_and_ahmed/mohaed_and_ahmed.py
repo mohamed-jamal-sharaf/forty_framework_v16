@@ -5,7 +5,7 @@
 from frappe.model.document import Document
 
 
-class ASDF(Document):
+class MOHAEDANDAHMED(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
 
@@ -14,8 +14,7 @@ class ASDF(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		aaa: DF.Attach | None
-		name1: DF.Data | None
+		ggg: DF.Data | None
 	# end: auto-generated types
 
 	pass

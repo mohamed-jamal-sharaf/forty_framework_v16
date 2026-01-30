@@ -1,32 +1,26 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2026-01-30 14:37:48.968653",
+ "creation": "2026-01-30 14:57:21.702951",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "name1",
-  "aaa"
+  "ggg"
  ],
  "fields": [
   {
-   "fieldname": "name1",
+   "fieldname": "ggg",
    "fieldtype": "Data",
-   "label": "name"
-  },
-  {
-   "fieldname": "aaa",
-   "fieldtype": "Attach",
-   "label": "aaa"
+   "label": "ggg"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-30 14:49:01.382800",
+ "modified": "2026-01-30 14:58:10.739142",
  "modified_by": "Administrator",
  "module": "Core",
- "name": "ASDF",
+ "name": "MOHAED AND AHMED",
  "owner": "Administrator",
  "permissions": [
   {
