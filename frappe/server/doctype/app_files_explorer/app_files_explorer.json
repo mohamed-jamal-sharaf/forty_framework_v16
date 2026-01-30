@@ -94,8 +94,8 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-01-29 16:26:22.815748",
- "modified_by": "Administrator",
+ "modified": "2026-01-31 01:58:06.535355",
+ "modified_by": "mohamed.sharaf.secured@gmail.com",
  "module": "Server",
  "name": "App Files Explorer",
  "naming_rule": "Expression",
@@ -103,11 +103,10 @@
  "permissions": [
   {
    "create": 1,
-   "delete": 1,
    "email": 1,
    "print": 1,
    "read": 1,
-   "role": "System Manager",
+   "role": "DevRole",
    "share": 1,
    "write": 1
   },
@@ -117,17 +116,7 @@
    "email": 1,
    "print": 1,
    "read": 1,
-   "role": "DEV ROLE",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "print": 1,
-   "read": 1,
-   "role": "Developer User Role",
+   "role": "Administrator",
    "share": 1,
    "write": 1
   }
