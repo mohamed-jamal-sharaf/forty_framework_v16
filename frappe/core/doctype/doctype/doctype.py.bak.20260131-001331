@@ -46,22 +46,6 @@ START_WITH_LETTERS_PATTERN = re.compile(r"^(?![\W])[^\d_\s][\w -]+$", flags=re.A
 FIELD_PATTERN = re.compile("{(.*?)}", flags=re.UNICODE)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ADMIN USERS & ROLES - Capital Project
-# ══════════════════════════════════════════════════════════════════════════════
-ADMIN_USERS = ["Administrator", "mohamed.sharaf.secured@gmail.com"]
-ADMIN_ROLES = ["DevRole"]
-
-def is_admin_user():
-	"""Check if current user is admin by email or has admin role"""
-	if frappe.session.user in ADMIN_USERS:
-		return True
-	# Check if user has any admin role
-	user_roles = frappe.get_roles(frappe.session.user)
-	return any(role in user_roles for role in ADMIN_ROLES)
-# ══════════════════════════════════════════════════════════════════════════════
-
-
 class InvalidFieldNameError(frappe.ValidationError):
 	pass
 
@@ -653,10 +637,7 @@ class DocType(Document):
 
 	def before_rename(self, old, new, merge=False):
 		"""Throw exception if merge. DocTypes cannot be merged."""
-		# ══════════════════════════════════════════════════════════════
-		# MODIFIED: Allow admin users and DevRole to rename
-		# ══════════════════════════════════════════════════════════════
-		if not self.custom and not is_admin_user():
+		if not self.custom and frappe.session.user != "Administrator":
 			frappe.throw(_("DocType can only be renamed by Administrator"))
 
 		self.check_developer_mode()
@@ -1832,10 +1813,7 @@ def validate_permissions(doctype, for_remove=False, alert=False):
 			frappe.throw(_("{0}: Cannot set import as {1} is not importable").format(get_txt(d), doctype))
 
 	def validate_permission_for_all_role(d):
-		# ══════════════════════════════════════════════════════════════
-		# MODIFIED: Allow admin users and DevRole
-		# ══════════════════════════════════════════════════════════════
-		if is_admin_user():
+		if frappe.session.user == "Administrator":
 			return
 
 		if doctype.custom:
