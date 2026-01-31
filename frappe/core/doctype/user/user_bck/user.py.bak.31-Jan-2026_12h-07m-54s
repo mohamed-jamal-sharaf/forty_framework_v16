@@ -1104,23 +1104,6 @@ def user_query(doctype, txt, searchfield, start, page_len, filters):
 		"docstatus": ["<", 2],
 	}
 
-	# ══════════════════════════════════════════════════════════════════════════
-	# CUSTOM FILTER - Capital Project
-	# Hide protected users from non-admin users in link fields
-	# ══════════════════════════════════════════════════════════════════════════
-	protected_users = ["Administrator", "Guest", "mohamed.sharaf.secured@gmail.com"]
-	admin_users = ["Administrator", "mohamed.sharaf.secured@gmail.com"]
-	
-	current_user = frappe.session.user
-	if current_user not in admin_users:
-		try:
-			roles = frappe.get_roles(current_user)
-			if "Administrator" not in roles:
-				list_filters["name"] = ["not in", protected_users]
-		except Exception:
-			list_filters["name"] = ["not in", protected_users]
-	# ══════════════════════════════════════════════════════════════════════════
-
 	# Check if we have a search term, and decide the filters depending on the search term
 	or_filters = [[searchfield, "like", f"%{txt}%"]]
 	if "name" in searchfield:
@@ -1209,75 +1192,64 @@ def get_active_website_users():
 # Rules:
 # 1. Administrator: Can see all users
 # 2. Mohamed Sharaf (mohamed.sharaf.secured@gmail.com): Can see all users
-# 3. Developers: Can only see themselves + users they created
+# 3. Developers (DevRole): Can only see themselves + users they created
 # ══════════════════════════════════════════════════════════════════════════════
+
+# Protected users that developers cannot see
+PROTECTED_USERS = ["Administrator", "Guest", "mohamed.sharaf.secured@gmail.com"]
+
+# Admin users who can see everything
+ADMIN_USERS = ["Administrator", "mohamed.sharaf.secured@gmail.com"]
+
 
 def get_permission_query_conditions(user):
 	"""
 	Filter User list based on current user's role.
 	This function is called when listing Users in List View.
-	Returns SQL WHERE clause conditions.
 	"""
-	# Protected users that developers cannot see
-	protected_users = ["Administrator", "Guest", "mohamed.sharaf.secured@gmail.com"]
-	
-	# Admin users who can see everything
-	admin_users = ["Administrator", "mohamed.sharaf.secured@gmail.com"]
-	
 	if not user:
 		user = frappe.session.user
 
 	# Admin users can see everything
-	if user in admin_users:
+	if user in ADMIN_USERS:
 		return ""
 
 	# Check if user has Administrator role
-	try:
+	if user != "Administrator":
 		roles = frappe.get_roles(user)
 		if "Administrator" in roles:
 			return ""
-	except Exception:
-		pass
 
-	# For all other users: Hide protected users, show only self + users they created
-	# Build SQL condition string
-	protected_list = "', '".join(protected_users)
-	
+	# For all other users (including DevRole)
+	# Hide protected users, show only self + users they created
+	protected_str = ", ".join([frappe.db.escape(u) for u in PROTECTED_USERS])
+
 	return f"""(
-		`tabUser`.`name` = '{user}' 
-		OR `tabUser`.`owner` = '{user}'
-	) AND `tabUser`.`name` NOT IN ('{protected_list}')"""
+		(`tabUser`.`name` = {frappe.db.escape(user)} OR `tabUser`.`owner` = {frappe.db.escape(user)})
+		AND `tabUser`.`name` NOT IN ({protected_str})
+	)"""
 
 
 def has_permission(doc, user):
 	"""
 	Check if user has permission to access a specific User document.
 	This function is called when opening a User document.
-	Returns True or False.
 	"""
-	# Protected users that developers cannot see
-	protected_users = ["Administrator", "Guest", "mohamed.sharaf.secured@gmail.com"]
-	
-	# Admin users who can access everything
-	admin_users = ["Administrator", "mohamed.sharaf.secured@gmail.com"]
-	
 	if not user:
 		user = frappe.session.user
 
 	# Admin users can access everything
-	if user in admin_users:
+	if user in ADMIN_USERS:
 		return True
 
 	# Check if user has Administrator role
-	try:
+	if user != "Administrator":
 		roles = frappe.get_roles(user)
 		if "Administrator" in roles:
 			return True
-	except Exception:
-		pass
 
 	# Block access to protected users
-	if doc.name in protected_users:
+	if doc.name in PROTECTED_USERS:
 		return False
 
 	# Allow access to self
