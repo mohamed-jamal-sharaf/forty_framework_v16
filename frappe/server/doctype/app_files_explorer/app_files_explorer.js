@@ -1,6 +1,6 @@
 // =====================================================
 // Enhanced App Files Explorer with Monaco Editor
-// Complete Version with Bench Operations
+// Complete Version with Bench Operations 
 // =====================================================
 
 // API Base Path

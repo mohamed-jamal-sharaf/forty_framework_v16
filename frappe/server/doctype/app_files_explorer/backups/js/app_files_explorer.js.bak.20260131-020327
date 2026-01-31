@@ -1,7 +1,10 @@
 // =====================================================
 // Enhanced App Files Explorer with Monaco Editor
-// Complete Version with Bench Operations
+// Complete Version with Bench Operations Mohamed Sharaf
 // =====================================================
+
+// API Base Path
+const API_PATH = 'frappe.server.doctype.app_files_explorer.app_files_explorer';
 
 // =====================================================
 // Global State
@@ -32,6 +35,9 @@ const EDITOR_CONFIG = {
     AUTOSAVE_DELAY: 2000
 };
 
+// Authorized users for frappe app access (client-side check)
+const AUTHORIZED_USERS = ["Administrator", "mohamed.sharaf.secured@gmail.com"];
+
 // =====================================================
 // Bench Operations Module
 // =====================================================
@@ -41,40 +47,32 @@ const BenchOperations = {
     progressInterval: null,
     progressDialog: null,
 
-    // Add Server Operation Buttons
     addServerButtons(frm) {
-        // 🔄 Restart Bench (Simple)
-        frm.add_custom_button(__("🔄 Restart"), () => {
+        frm.add_custom_button(__("Restart"), () => {
             this.showRestartDialog();
         }, __("Server"));
 
-        // 🔄 Restart with Sudo
-        frm.add_custom_button(__("🔄 Restart (Sudo)"), () => {
+        frm.add_custom_button(__("Restart (Sudo)"), () => {
             this.showSudoRestartDialog();
         }, __("Server"));
 
-        // 🗃 Migrate
-        frm.add_custom_button(__("🗃 Migrate"), () => {
+        frm.add_custom_button(__("Migrate"), () => {
             this.showMigrateDialog();
         }, __("Server"));
 
-        // 🔨 Build Assets
-        frm.add_custom_button(__("🔨 Build"), () => {
+        frm.add_custom_button(__("Build"), () => {
             this.showBuildDialog();
         }, __("Server"));
 
-        // 🧹 Clear Cache
-        frm.add_custom_button(__("🧹 Clear Cache"), () => {
+        frm.add_custom_button(__("Clear Cache"), () => {
             this.runClearCache();
         }, __("Server"));
 
-        // ℹ️ Bench Info
-        frm.add_custom_button(__("ℹ️ Bench Info"), () => {
+        frm.add_custom_button(__("Bench Info"), () => {
             this.showBenchInfo();
         }, __("Server"));
     },
 
-    // Simple Restart Dialog
     showRestartDialog() {
         frappe.confirm(
             `<div style="text-align: center;">
@@ -82,7 +80,7 @@ const BenchOperations = {
                 <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">${__('Restart Bench')}</div>
                 <div style="color: #666; margin-bottom: 16px;">${__('This will restart the web server and workers.')}</div>
                 <div style="background: #fff3cd; padding: 12px; border-radius: 8px; color: #856404;">
-                    ⚠️ ${__('The page may become temporarily unavailable.')}
+                    ${__('The page may become temporarily unavailable.')}
                 </div>
             </div>`,
             async () => {
@@ -92,10 +90,9 @@ const BenchOperations = {
         );
     },
 
-    // Sudo Restart Dialog (with password)
     showSudoRestartDialog() {
         const dialog = new frappe.ui.Dialog({
-            title: __('🔄 Restart Bench with Sudo'),
+            title: __('Restart Bench with Sudo'),
             size: 'small',
             fields: [
                 {
@@ -115,17 +112,9 @@ const BenchOperations = {
                     fieldtype: 'Password',
                     reqd: 1,
                     placeholder: __('Enter system password')
-                },
-                {
-                    fieldtype: 'HTML',
-                    options: `
-                        <div style="background: #fff3cd; padding: 12px; border-radius: 8px; color: #856404; margin-top: 16px; font-size: 12px;">
-                            ⚠️ <strong>${__('Warning:')}</strong> ${__('This will fully restart all bench processes. The site may be unavailable for a few seconds.')}
-                        </div>
-                    `
                 }
             ],
-            primary_action_label: __('🔄 Restart Now'),
+            primary_action_label: __('Restart Now'),
             primary_action: async (values) => {
                 dialog.hide();
                 await this.executeRestartWithSudo(values.sudo_password);
@@ -134,10 +123,9 @@ const BenchOperations = {
         dialog.show();
     },
 
-    // Migrate Dialog
     showMigrateDialog() {
         const dialog = new frappe.ui.Dialog({
-            title: __('🗃 Run Bench Migrate'),
+            title: __('Run Bench Migrate'),
             size: 'small',
             fields: [
                 {
@@ -156,19 +144,10 @@ const BenchOperations = {
                     fieldname: 'sudo_password',
                     fieldtype: 'Password',
                     reqd: 1,
-                    placeholder: __('Enter sudo password for frappe user'),
-                    description: __('Required to run bench migrate as frappe user')
-                },
-                {
-                    fieldtype: 'HTML',
-                    options: `
-                        <div style="background: #fff3cd; padding: 12px; border-radius: 8px; color: #856404; margin-top: 16px; font-size: 12px;">
-                            ⚠️ <strong>${__('Note:')}</strong> ${__('Migration may take several minutes. Do not close this dialog.')}
-                        </div>
-                    `
+                    placeholder: __('Enter sudo password for frappe user')
                 }
             ],
-            primary_action_label: __('🗃 Start Migration'),
+            primary_action_label: __('Start Migration'),
             primary_action: async (values) => {
                 dialog.hide();
                 await this.executeMigrate(values.sudo_password);
@@ -177,10 +156,9 @@ const BenchOperations = {
         dialog.show();
     },
 
-    // Build Dialog
     showBuildDialog() {
         const dialog = new frappe.ui.Dialog({
-            title: __('🔨 Build Assets'),
+            title: __('Build Assets'),
             size: 'small',
             fields: [
                 {
@@ -207,7 +185,7 @@ const BenchOperations = {
                     placeholder: __('Leave empty if not required')
                 }
             ],
-            primary_action_label: __('🔨 Start Build'),
+            primary_action_label: __('Start Build'),
             primary_action: async (values) => {
                 dialog.hide();
                 await this.executeBuild(values.sudo_password, values.app);
@@ -216,7 +194,6 @@ const BenchOperations = {
         dialog.show();
     },
 
-    // Execute Operations
     async executeRestart() {
         try {
             const res = await frappe.call({
@@ -328,23 +305,15 @@ const BenchOperations = {
         }
     },
 
-    // Progress Dialog
     showProgressDialog(operation, operationId, autoRefreshOnComplete = false) {
         const self = this;
         self.currentOperationId = operationId;
 
         const operationTitles = {
-            'restart': __('🔄 Restarting Bench'),
-            'migrate': __('🗃 Running Migration'),
-            'build': __('🔨 Building Assets'),
-            'clear_cache': __('🧹 Clearing Cache')
-        };
-
-        const operationIcons = {
-            'restart': '🔄',
-            'migrate': '🗃',
-            'build': '🔨',
-            'clear_cache': '🧹'
+            'restart': __('Restarting Bench'),
+            'migrate': __('Running Migration'),
+            'build': __('Building Assets'),
+            'clear_cache': __('Clearing Cache')
         };
 
         self.progressDialog = new frappe.ui.Dialog({
@@ -355,7 +324,7 @@ const BenchOperations = {
                 {
                     fieldtype: 'HTML',
                     fieldname: 'progress_content',
-                    options: self.getProgressHTML(operationIcons[operation] || '⚙️', 0, __('Starting...'))
+                    options: self.getProgressHTML(0, __('Starting...'))
                 }
             ],
             primary_action_label: __('Please wait...'),
@@ -368,15 +337,12 @@ const BenchOperations = {
             }
         });
 
-        // Disable close button initially
         self.progressDialog.$wrapper.find('.btn-primary').prop('disabled', true);
         self.progressDialog.show();
-
-        // Start polling for progress
         self.startProgressPolling(operationId, autoRefreshOnComplete);
     },
 
-    getProgressHTML(icon, progress, message, logs = []) {
+    getProgressHTML(progress, message, logs = []) {
         const logsHTML = logs.map(log => `
             <div style="padding: 4px 8px; border-bottom: 1px solid #333; font-size: 12px;">
                 <span style="color: #888; margin-right: 8px;">${log.time ? log.time.split(' ')[1] : ''}</span>
@@ -386,61 +352,31 @@ const BenchOperations = {
 
         return `
             <div style="text-align: center; padding: 20px;">
-                <div style="font-size: 64px; margin-bottom: 20px;" class="progress-icon">
-                    ${icon}
-                </div>
-
                 <div style="width: 100%; background: #e9ecef; border-radius: 10px; height: 24px; overflow: hidden; margin-bottom: 16px;">
                     <div class="progress-bar-fill" style="width: ${progress}%; height: 100%; background: linear-gradient(90deg, #4caf50, #8bc34a); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; transition: width 0.3s ease;">
                         ${progress}%
                     </div>
                 </div>
-
                 <div class="progress-message" style="font-size: 16px; color: #333; margin-bottom: 20px;">
                     ${message}
                 </div>
-
                 <div style="background: #1e1e1e; border-radius: 8px; max-height: 200px; overflow-y: auto; text-align: left; color: #d4d4d4;" class="progress-logs">
                     ${logsHTML || '<div style="padding: 16px; color: #666; text-align: center;">Waiting for output...</div>'}
                 </div>
             </div>
-
-            <style>
-                .progress-icon {
-                    animation: pulse 2s infinite;
-                }
-                @keyframes pulse {
-                    0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.1); }
-                }
-                .progress-logs::-webkit-scrollbar {
-                    width: 8px;
-                }
-                .progress-logs::-webkit-scrollbar-track {
-                    background: #2d2d2d;
-                }
-                .progress-logs::-webkit-scrollbar-thumb {
-                    background: #555;
-                    border-radius: 4px;
-                }
-            </style>
         `;
     },
 
     startProgressPolling(operationId, autoRefreshOnComplete) {
         const self = this;
 
-        console.log('[BenchOps] Starting progress polling for:', operationId);
-
         self.progressInterval = setInterval(async () => {
             try {
-                console.log('[BenchOps] Polling progress...');
                 const res = await frappe.call({
                     method: 'frappe.api.restart_api.get_operation_progress',
                     args: { operation_id: operationId }
                 });
 
-                console.log('[BenchOps] Progress response:', res.message);
                 const data = res.message;
 
                 if (data && data.status !== 'not_found') {
@@ -449,7 +385,6 @@ const BenchOperations = {
                     if (data.status === 'completed' || data.status === 'error') {
                         self.stopProgressPolling();
 
-                        // Enable close button
                         if (self.progressDialog && self.progressDialog.$wrapper) {
                             self.progressDialog.$wrapper.find('.btn-primary').prop('disabled', false).text(__('Close'));
                         }
@@ -482,26 +417,13 @@ const BenchOperations = {
         if (!self.progressDialog || !self.progressDialog.fields_dict.progress_content) return;
 
         const wrapper = self.progressDialog.fields_dict.progress_content.$wrapper;
-
-        // Update progress bar
         wrapper.find('.progress-bar-fill').css('width', data.progress + '%').text(data.progress + '%');
-
-        // Update message
         wrapper.find('.progress-message').text(data.message);
 
-        // Update icon based on status
-        let icon = '⚙️';
-        if (data.status === 'completed') {
-            icon = '✅';
-            wrapper.find('.progress-icon').css('animation', 'none');
-        } else if (data.status === 'error') {
-            icon = '❌';
-            wrapper.find('.progress-icon').css('animation', 'none');
+        if (data.status === 'error') {
             wrapper.find('.progress-bar-fill').css('background', 'linear-gradient(90deg, #f44336, #e91e63)');
         }
-        wrapper.find('.progress-icon').text(icon);
 
-        // Update logs
         if (data.logs && data.logs.length > 0) {
             const logsHTML = data.logs.map(log => `
                 <div style="padding: 4px 8px; border-bottom: 1px solid #333; font-size: 12px;">
@@ -522,7 +444,6 @@ const BenchOperations = {
         return div.innerHTML;
     },
 
-    // Bench Info Dialog
     async showBenchInfo() {
         try {
             const res = await frappe.call({
@@ -534,7 +455,7 @@ const BenchOperations = {
             const info = res.message;
 
             const dialog = new frappe.ui.Dialog({
-                title: __('ℹ️ Bench Information'),
+                title: __('Bench Information'),
                 size: 'large',
                 fields: [
                     {
@@ -543,38 +464,24 @@ const BenchOperations = {
                             <div style="padding: 16px;">
                                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;">
                                     <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">📁 ${__('Bench Path')}</div>
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${__('Bench Path')}</div>
                                         <div style="font-weight: 600; word-break: break-all;">${info.bench_path}</div>
                                     </div>
                                     <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">🌐 ${__('Site')}</div>
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${__('Site')}</div>
                                         <div style="font-weight: 600;">${info.site}</div>
                                     </div>
                                     <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">🐍 ${__('Python Version')}</div>
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${__('Python Version')}</div>
                                         <div style="font-weight: 600;">${info.python_version}</div>
                                     </div>
                                     <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">🔧 ${__('Frappe Version')}</div>
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${__('Frappe Version')}</div>
                                         <div style="font-weight: 600;">${info.frappe_version}</div>
                                     </div>
                                 </div>
-
-                                <div style="display: flex; gap: 16px; margin-bottom: 24px;">
-                                    <div style="flex: 1; background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center;">
-                                        <div style="font-size: 24px; margin-bottom: 8px;">${info.supervisor_running ? '✅' : '❌'}</div>
-                                        <div style="font-weight: 600;">Supervisor</div>
-                                        <div style="font-size: 12px; color: #666;">${info.supervisor_running ? __('Running') : __('Not Running')}</div>
-                                    </div>
-                                    <div style="flex: 1; background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center;">
-                                        <div style="font-size: 24px; margin-bottom: 8px;">${info.systemd_setup ? '✅' : '❌'}</div>
-                                        <div style="font-weight: 600;">Systemd</div>
-                                        <div style="font-size: 12px; color: #666;">${info.systemd_setup ? __('Configured') : __('Not Configured')}</div>
-                                    </div>
-                                </div>
-
                                 <div style="margin-bottom: 16px;">
-                                    <div style="font-weight: 600; margin-bottom: 8px;">📦 ${__('Installed Apps')}</div>
+                                    <div style="font-weight: 600; margin-bottom: 8px;">${__('Installed Apps')}</div>
                                     <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                         ${info.installed_apps.map(app => `
                                             <span style="background: #e9ecef; padding: 4px 12px; border-radius: 16px; font-size: 13px;">
@@ -583,13 +490,6 @@ const BenchOperations = {
                                         `).join('')}
                                     </div>
                                 </div>
-
-                                ${info.supervisor_status ? `
-                                    <div>
-                                        <div style="font-weight: 600; margin-bottom: 8px;">📊 ${__('Supervisor Status')}</div>
-                                        <pre style="background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 12px; max-height: 200px;">${info.supervisor_status}</pre>
-                                    </div>
-                                ` : ''}
                             </div>
                         `
                     }
@@ -619,14 +519,10 @@ frappe.ui.form.on('App Files Explorer', {
     },
 
     async refresh(frm) {
-        // Add custom buttons
         add_custom_buttons(frm);
 
-        // Initialize editor HTML
         if (frm.fields_dict.editor_html) {
             frm.fields_dict.editor_html.$wrapper.html(createEditorHTML());
-
-            // Restore preferences
             frm.fields_dict.editor_html.$wrapper.find('.editor-theme-select').val(editorState.theme);
             frm.fields_dict.editor_html.$wrapper.find('.editor-font-size').val(editorState.fontSize);
             frm.fields_dict.editor_html.$wrapper.find('.font-size-value').text(editorState.fontSize + 'px');
@@ -636,7 +532,6 @@ frappe.ui.form.on('App Files Explorer', {
             load_files_list(frm);
         }
 
-        // Load Monaco and initialize editor if we have code
         if (frm.doc.my_code) {
             loadMonacoEditor(() => {
                 initializeMonacoEditor(frm);
@@ -667,31 +562,26 @@ frappe.ui.form.on('App Files Explorer', {
 function add_custom_buttons(frm) {
     frm.clear_custom_buttons();
 
-    // ➕ Create New File Button
-    frm.add_custom_button(__("📄 New File"), () => {
+    frm.add_custom_button(__("New File"), () => {
         show_create_file_dialog(frm);
     }, __("Create"));
 
-    // 📁 Create New Folder Button
-    frm.add_custom_button(__("📁 New Folder"), () => {
+    frm.add_custom_button(__("New Folder"), () => {
         show_create_folder_dialog(frm);
     }, __("Create"));
 
-    // 🗑️ Delete File Button (Administrator only)
     if (frappe.session.user === "Administrator" && frm.doc.file_path) {
-        frm.add_custom_button(__("🗑️ Delete File"), () => {
+        frm.add_custom_button(__("Delete File"), () => {
             show_delete_file_dialog(frm);
         }, __("Actions"));
     }
 
-    // ✏️ Rename Button
     if (frm.doc.file_path) {
-        frm.add_custom_button(__("✏️ Rename"), () => {
+        frm.add_custom_button(__("Rename"), () => {
             show_rename_dialog(frm);
         }, __("Actions"));
     }
 
-    // Add Server buttons (Administrator only)
     if (frappe.session.user === "Administrator") {
         BenchOperations.addServerButtons(frm);
     }
@@ -704,14 +594,14 @@ function add_custom_buttons(frm) {
 function show_create_file_dialog(frm) {
     if (!frm.doc.app_name) {
         frappe.show_alert({
-            message: __('⚠️ Please select an app first'),
+            message: __('Please select an app first'),
             indicator: 'orange'
         }, 3);
         return;
     }
 
     const dialog = new frappe.ui.Dialog({
-        title: __('📄 Create New File'),
+        title: __('Create New File'),
         size: 'small',
         fields: [
             {
@@ -719,8 +609,7 @@ function show_create_file_dialog(frm) {
                 fieldname: 'file_name',
                 fieldtype: 'Data',
                 reqd: 1,
-                placeholder: __('example.py or script.js'),
-                description: __('Enter file name with extension (e.g., my_script.py, style.css)')
+                placeholder: __('example.py or script.js')
             },
             {
                 label: __('File Extension Templates'),
@@ -737,7 +626,7 @@ function show_create_file_dialog(frm) {
                     'SQL (.sql)',
                     'Text (.txt)'
                 ],
-                change: function() {
+                change: function () {
                     const selected = this.get_value();
                     if (selected) {
                         const extMap = {
@@ -771,7 +660,7 @@ function show_create_file_dialog(frm) {
         primary_action: async (values) => {
             if (!values.file_name) {
                 frappe.show_alert({
-                    message: __('⚠️ Please enter a file name'),
+                    message: __('Please enter a file name'),
                     indicator: 'orange'
                 }, 2);
                 return;
@@ -781,7 +670,7 @@ function show_create_file_dialog(frm) {
 
             try {
                 const res = await frappe.call({
-                    method: 'frappe.api.app_file_access.create_new_file',
+                    method: `${API_PATH}.create_new_file`,
                     args: {
                         app_name: frm.doc.app_name,
                         folder_path: frm.doc.target_path || '',
@@ -821,14 +710,14 @@ function show_create_file_dialog(frm) {
 function show_create_folder_dialog(frm) {
     if (!frm.doc.app_name) {
         frappe.show_alert({
-            message: __('⚠️ Please select an app first'),
+            message: __('Please select an app first'),
             indicator: 'orange'
         }, 3);
         return;
     }
 
     const dialog = new frappe.ui.Dialog({
-        title: __('📁 Create New Folder'),
+        title: __('Create New Folder'),
         size: 'small',
         fields: [
             {
@@ -836,8 +725,7 @@ function show_create_folder_dialog(frm) {
                 fieldname: 'folder_name',
                 fieldtype: 'Data',
                 reqd: 1,
-                placeholder: __('my_folder'),
-                description: __('Enter folder name (no special characters)')
+                placeholder: __('my_folder')
             },
             {
                 fieldtype: 'Section Break'
@@ -854,7 +742,7 @@ function show_create_folder_dialog(frm) {
         primary_action: async (values) => {
             if (!values.folder_name) {
                 frappe.show_alert({
-                    message: __('⚠️ Please enter a folder name'),
+                    message: __('Please enter a folder name'),
                     indicator: 'orange'
                 }, 2);
                 return;
@@ -864,7 +752,7 @@ function show_create_folder_dialog(frm) {
 
             try {
                 const res = await frappe.call({
-                    method: 'frappe.api.app_file_access.create_new_folder',
+                    method: `${API_PATH}.create_new_folder`,
                     args: {
                         app_name: frm.doc.app_name,
                         parent_path: frm.doc.target_path || '',
@@ -893,13 +781,13 @@ function show_create_folder_dialog(frm) {
 }
 
 // =====================================================
-// Delete File Dialog (Administrator Only)
+// Delete File Dialog
 // =====================================================
 
 function show_delete_file_dialog(frm) {
     if (frappe.session.user !== "Administrator") {
         frappe.show_alert({
-            message: __('🚫 Access Denied: Only Administrator can delete files'),
+            message: __('Access Denied: Only Administrator can delete files'),
             indicator: 'red'
         }, 3);
         return;
@@ -907,7 +795,7 @@ function show_delete_file_dialog(frm) {
 
     if (!frm.doc.file_path) {
         frappe.show_alert({
-            message: __('⚠️ Please select a file first'),
+            message: __('Please select a file first'),
             indicator: 'orange'
         }, 2);
         return;
@@ -921,12 +809,12 @@ function show_delete_file_dialog(frm) {
             <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">${__('Delete File')}</div>
             <div style="color: #666;">${__('Are you sure you want to delete:')}</div>
             <div style="font-weight: 600; color: #d32f2f; margin: 12px 0; padding: 8px; background: #ffebee; border-radius: 4px;">${fileName}</div>
-            <div style="color: #999; font-size: 12px;">⚠️ ${__('This action cannot be undone. All backups will also be deleted.')}</div>
+            <div style="color: #999; font-size: 12px;">${__('This action cannot be undone.')}</div>
         </div>`,
         async () => {
             try {
                 const res = await frappe.call({
-                    method: 'frappe.api.app_file_access.delete_file',
+                    method: `${API_PATH}.delete_file`,
                     args: {
                         app_name: frm.doc.app_name,
                         file_path: frm.doc.file_path
@@ -935,7 +823,7 @@ function show_delete_file_dialog(frm) {
 
                 if (res.message && res.message.success) {
                     frappe.show_alert({
-                        message: res.message.message + (res.message.backups_deleted > 0 ? ` (${res.message.backups_deleted} backups removed)` : ''),
+                        message: res.message.message,
                         indicator: 'green'
                     }, 3);
 
@@ -963,7 +851,7 @@ function show_delete_file_dialog(frm) {
 function show_rename_dialog(frm) {
     if (!frm.doc.file_path) {
         frappe.show_alert({
-            message: __('⚠️ Please select a file first'),
+            message: __('Please select a file first'),
             indicator: 'orange'
         }, 2);
         return;
@@ -972,7 +860,7 @@ function show_rename_dialog(frm) {
     const currentName = frm.doc.file_path.split('/').pop();
 
     const dialog = new frappe.ui.Dialog({
-        title: __('✏️ Rename File'),
+        title: __('Rename File'),
         size: 'small',
         fields: [
             {
@@ -987,15 +875,14 @@ function show_rename_dialog(frm) {
                 fieldname: 'new_name',
                 fieldtype: 'Data',
                 reqd: 1,
-                default: currentName,
-                placeholder: __('Enter new name')
+                default: currentName
             }
         ],
         primary_action_label: __('Rename'),
         primary_action: async (values) => {
             if (!values.new_name || values.new_name === currentName) {
                 frappe.show_alert({
-                    message: __('⚠️ Please enter a different name'),
+                    message: __('Please enter a different name'),
                     indicator: 'orange'
                 }, 2);
                 return;
@@ -1005,7 +892,7 @@ function show_rename_dialog(frm) {
 
             try {
                 const res = await frappe.call({
-                    method: 'frappe.api.app_file_access.rename_item',
+                    method: `${API_PATH}.rename_item`,
                     args: {
                         app_name: frm.doc.app_name,
                         old_path: frm.doc.file_path,
@@ -1041,11 +928,19 @@ function show_rename_dialog(frm) {
 async function ensure_apps_loaded(frm) {
     try {
         const res = await frappe.call({
-            method: 'frappe.api.app_file_access.get_installed_apps'
+            method: `${API_PATH}.get_installed_apps`
         });
 
-        const apps = res.message || [];
+        let apps = res.message || [];
         console.log("[DEBUG] Apps loaded:", apps);
+
+        // Client-side filter (server also filters)
+        const isAuthorized = AUTHORIZED_USERS.includes(frappe.session.user);
+
+        if (!isAuthorized) {
+            apps = apps.filter(app => app.toLowerCase() !== 'frappe');
+            console.log("[DEBUG] Filtered apps (frappe hidden):", apps);
+        }
 
         if (apps && apps.length > 0) {
             frm.set_df_property('app_name', 'options', apps.join('\n'));
@@ -1055,7 +950,7 @@ async function ensure_apps_loaded(frm) {
     } catch (error) {
         console.error("[ERROR] Failed to load apps:", error);
         frappe.show_alert({
-            message: __('❌ Failed to load apps list'),
+            message: __('Failed to load apps list'),
             indicator: 'red'
         }, 2);
     }
@@ -1076,12 +971,12 @@ async function load_files_list(frm) {
     if (!app) return;
 
     frappe.show_alert({
-        message: __('📂 Loading files...'),
+        message: __('Loading files...'),
         indicator: 'blue'
     }, 1);
 
     const res = await frappe.call({
-        method: "frappe.api.app_file_access.list_app_folder_files",
+        method: `${API_PATH}.list_app_folder_files`,
         args: { app_name: app, path },
     });
 
@@ -1120,19 +1015,16 @@ async function load_files_list(frm) {
                 box-shadow: 0 4px 16px rgba(0,0,0,0.2);
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             }
-
             .file-explorer-header {
                 background: linear-gradient(135deg, #2d2d30 0%, #252526 100%);
                 padding: 16px;
                 border-bottom: 1px solid #3e3e42;
             }
-
             .header-actions {
                 display: flex;
                 gap: 8px;
                 margin-bottom: 12px;
             }
-
             .header-actions .btn {
                 font-size: 12px;
                 padding: 6px 12px;
@@ -1141,25 +1033,20 @@ async function load_files_list(frm) {
                 cursor: pointer;
                 transition: all 0.2s;
             }
-
             .btn-create-file {
                 background: #4caf50;
                 color: white;
             }
-
             .btn-create-file:hover {
                 background: #45a049;
             }
-
             .btn-create-folder {
                 background: #2196f3;
                 color: white;
             }
-
             .btn-create-folder:hover {
                 background: #1976d2;
             }
-
             .breadcrumb {
                 display: flex;
                 align-items: center;
@@ -1169,7 +1056,6 @@ async function load_files_list(frm) {
                 color: #cccccc;
                 flex-wrap: wrap;
             }
-
             .breadcrumb-item {
                 cursor: pointer;
                 padding: 4px 8px;
@@ -1177,16 +1063,13 @@ async function load_files_list(frm) {
                 transition: all 0.2s;
                 color: #569cd6;
             }
-
             .breadcrumb-item:hover {
                 background: rgba(86, 156, 214, 0.2);
                 color: #9cdcfe;
             }
-
             .breadcrumb-separator {
                 color: #666;
             }
-
             .file-search-box {
                 width: 100%;
                 padding: 10px 12px;
@@ -1198,25 +1081,21 @@ async function load_files_list(frm) {
                 outline: none;
                 transition: all 0.2s;
             }
-
             .file-search-box:focus {
                 background: #2d2d30;
                 border-color: #007acc;
                 box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
             }
-
             .file-explorer-body {
                 max-height: 600px;
                 overflow-y: auto;
                 background: #252526;
             }
-
             .file-list {
                 list-style: none;
                 padding: 8px;
                 margin: 0;
             }
-
             .file-item {
                 display: flex;
                 align-items: center;
@@ -1227,30 +1106,24 @@ async function load_files_list(frm) {
                 margin-bottom: 2px;
                 gap: 10px;
             }
-
             .file-item:hover {
                 background: rgba(255, 255, 255, 0.08);
             }
-
             .file-item:hover .file-actions {
                 opacity: 1;
             }
-
             .file-item.selected {
                 background: #094771;
             }
-
             .file-item.is-directory .file-name {
                 color: #9cdcfe;
                 font-weight: 500;
             }
-
             .file-icon {
                 font-size: 18px;
                 min-width: 24px;
                 text-align: center;
             }
-
             .file-name {
                 flex: 1;
                 font-size: 13px;
@@ -1259,21 +1132,18 @@ async function load_files_list(frm) {
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
-
             .file-size {
                 font-size: 11px;
                 color: #858585;
                 min-width: 60px;
                 text-align: right;
             }
-
             .file-actions {
                 opacity: 0;
                 display: flex;
                 gap: 4px;
                 transition: opacity 0.2s;
             }
-
             .file-action-btn {
                 background: transparent;
                 border: none;
@@ -1283,19 +1153,15 @@ async function load_files_list(frm) {
                 font-size: 14px;
                 transition: all 0.2s;
             }
-
             .file-action-btn:hover {
                 background: rgba(255, 255, 255, 0.1);
             }
-
             .file-action-btn.delete-btn {
                 color: #f44336;
             }
-
             .file-action-btn.delete-btn:hover {
                 background: rgba(244, 67, 54, 0.2);
             }
-
             .file-explorer-footer {
                 background: #2d2d30;
                 padding: 10px 16px;
@@ -1306,32 +1172,26 @@ async function load_files_list(frm) {
                 font-size: 12px;
                 color: #858585;
             }
-
             .empty-state {
                 text-align: center;
                 padding: 60px 20px;
                 color: #858585;
             }
-
             .empty-state-icon {
                 font-size: 48px;
                 margin-bottom: 16px;
                 opacity: 0.5;
             }
-
             .file-explorer-body::-webkit-scrollbar {
                 width: 10px;
             }
-
             .file-explorer-body::-webkit-scrollbar-track {
                 background: #1e1e1e;
             }
-
             .file-explorer-body::-webkit-scrollbar-thumb {
                 background: #424242;
                 border-radius: 5px;
             }
-
             .file-explorer-body::-webkit-scrollbar-thumb:hover {
                 background: #4e4e4e;
             }
@@ -1353,10 +1213,10 @@ async function load_files_list(frm) {
                 ${files.length > 0 ? `
                     <ul class="file-list">
                         ${files.map(f => {
-                            const icon = getFileIcon(f.name, f.is_dir);
-                            const sizeText = f.size ? formatFileSize(f.size) : '';
+        const icon = getFileIcon(f.name, f.is_dir);
+        const sizeText = f.size ? formatFileSize(f.size) : '';
 
-                            return `
+        return `
                                 <li class="file-item ${f.is_dir ? 'is-directory' : 'is-file'}" data-path="${f.path}" data-is-file="${f.is_file}" data-is-dir="${f.is_dir}" data-name="${f.name.toLowerCase()}">
                                     <span class="file-icon">${icon}</span>
                                     <span class="file-name">${f.name}</span>
@@ -1368,15 +1228,12 @@ async function load_files_list(frm) {
                                     </div>
                                 </li>
                             `;
-                        }).join('')}
+    }).join('')}
                     </ul>
                 ` : `
                     <div class="empty-state">
                         <div class="empty-state-icon">📂</div>
                         <div>${__('No files found in this directory')}</div>
-                        <div style="margin-top: 16px;">
-                            <button class="btn btn-create-file" style="background: #4caf50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">📄 ${__('Create First File')}</button>
-                        </div>
                     </div>
                 `}
             </div>
@@ -1394,7 +1251,6 @@ async function load_files_list(frm) {
     setTimeout(() => {
         const wrapper = frm.fields_dict.files_list_html.$wrapper;
 
-        // File item click handler
         wrapper.find(".file-item").on("click", function (e) {
             if ($(e.target).closest('.file-actions').length) return;
 
@@ -1413,17 +1269,15 @@ async function load_files_list(frm) {
             load_file_content(frm, path);
         });
 
-        // Breadcrumb click handler
         wrapper.find(".breadcrumb-item").on("click", function () {
             const targetPath = $(this).data("path");
             frm.set_value("target_path", targetPath);
         });
 
-        // Search input handler
-        wrapper.find("#file-search-input").on("input", function() {
+        wrapper.find("#file-search-input").on("input", function () {
             const query = $(this).val().toLowerCase();
 
-            wrapper.find(".file-item").each(function() {
+            wrapper.find(".file-item").each(function () {
                 const fileName = $(this).data("name");
                 if (fileName.includes(query)) {
                     $(this).show();
@@ -1433,22 +1287,19 @@ async function load_files_list(frm) {
             });
         });
 
-        // Create file button handler
-        wrapper.find(".btn-create-file").on("click", function(e) {
+        wrapper.find(".btn-create-file").on("click", function (e) {
             e.preventDefault();
             e.stopPropagation();
             show_create_file_dialog(frm);
         });
 
-        // Create folder button handler
-        wrapper.find(".btn-create-folder").on("click", function(e) {
+        wrapper.find(".btn-create-folder").on("click", function (e) {
             e.preventDefault();
             e.stopPropagation();
             show_create_folder_dialog(frm);
         });
 
-        // Delete button handler (Administrator only)
-        wrapper.find(".delete-btn").on("click", function(e) {
+        wrapper.find(".delete-btn").on("click", function (e) {
             e.preventDefault();
             e.stopPropagation();
 
@@ -1463,12 +1314,12 @@ async function load_files_list(frm) {
                         <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">${__('Delete Folder')}</div>
                         <div style="color: #666;">${__('Are you sure you want to delete:')}</div>
                         <div style="font-weight: 600; color: #d32f2f; margin: 12px 0; padding: 8px; background: #ffebee; border-radius: 4px;">${itemName}</div>
-                        <div style="color: #999; font-size: 12px;">⚠️ ${__('Folder must be empty to delete.')}</div>
+                        <div style="color: #999; font-size: 12px;">${__('Folder must be empty to delete.')}</div>
                     </div>`,
                     async () => {
                         try {
                             const res = await frappe.call({
-                                method: 'frappe.api.app_file_access.delete_folder',
+                                method: `${API_PATH}.delete_folder`,
                                 args: {
                                     app_name: frm.doc.app_name,
                                     folder_path: itemPath
@@ -1495,12 +1346,12 @@ async function load_files_list(frm) {
                         <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">${__('Delete File')}</div>
                         <div style="color: #666;">${__('Are you sure you want to delete:')}</div>
                         <div style="font-weight: 600; color: #d32f2f; margin: 12px 0; padding: 8px; background: #ffebee; border-radius: 4px;">${itemName}</div>
-                        <div style="color: #999; font-size: 12px;">⚠️ ${__('This action cannot be undone. All backups will also be deleted.')}</div>
+                        <div style="color: #999; font-size: 12px;">${__('This action cannot be undone.')}</div>
                     </div>`,
                     async () => {
                         try {
                             const res = await frappe.call({
-                                method: 'frappe.api.app_file_access.delete_file',
+                                method: `${API_PATH}.delete_file`,
                                 args: {
                                     app_name: frm.doc.app_name,
                                     file_path: itemPath
@@ -1509,7 +1360,7 @@ async function load_files_list(frm) {
 
                             if (res.message && res.message.success) {
                                 frappe.show_alert({
-                                    message: res.message.message + (res.message.backups_deleted > 0 ? ` (${res.message.backups_deleted} backups removed)` : ''),
+                                    message: res.message.message,
                                     indicator: 'green'
                                 }, 3);
 
@@ -1564,13 +1415,13 @@ async function load_file_content(frm, file_path) {
     if (!app || !file_path) return;
 
     frappe.show_alert({
-        message: __(`📂 Loading ${file_path.split('/').pop()}...`),
+        message: __(`Loading ${file_path.split('/').pop()}...`),
         indicator: 'blue'
     }, 1);
 
     try {
         const res = await frappe.call({
-            method: "frappe.api.app_file_access.read_file_content",
+            method: `${API_PATH}.read_file_content`,
             args: { app_name: app, file_path },
             async: true
         });
@@ -1579,7 +1430,7 @@ async function load_file_content(frm, file_path) {
         frm.set_value("my_code", content || "");
 
         frappe.show_alert({
-            message: __('✅ File loaded successfully!'),
+            message: __('File loaded successfully!'),
             indicator: 'green'
         }, 1);
 
@@ -1593,7 +1444,7 @@ async function load_file_content(frm, file_path) {
     } catch (error) {
         console.error("[ERROR]", error);
         frappe.show_alert({
-            message: __('❌ Error loading file'),
+            message: __('Error loading file'),
             indicator: 'red'
         }, 2);
     }
@@ -1631,7 +1482,7 @@ function loadMonacoEditor(callback) {
 
     script.onerror = () => {
         frappe.show_alert({
-            message: __('❌ Failed to load Monaco Editor'),
+            message: __('Failed to load Monaco Editor'),
             indicator: 'red'
         }, 3);
         console.error("[MONACO] Failed to load Monaco Editor");
@@ -1739,7 +1590,7 @@ function setupEditorEventHandlers(frm) {
     wrapper.find('.editor-format').off('click').on('click', () => {
         if (monacoEditor) {
             monacoEditor.getAction('editor.action.formatDocument').run();
-            frappe.show_alert({ message: __('✨ Document formatted'), indicator: 'green' }, 1);
+            frappe.show_alert({ message: __('Document formatted'), indicator: 'green' }, 1);
         }
     });
 
@@ -1762,7 +1613,7 @@ function setupEditorEventHandlers(frm) {
             monacoEditor.updateOptions({
                 minimap: { enabled: !enabled }
             });
-            $(this).text(!enabled ? '🗺 Hide Minimap' : '🗺 Show Minimap');
+            $(this).text(!enabled ? 'Hide Minimap' : 'Show Minimap');
         }
     });
 
@@ -1771,7 +1622,7 @@ function setupEditorEventHandlers(frm) {
             const currentWrap = monacoEditor.getOptions().get(monaco.editor.EditorOption.wordWrap);
             const newWrap = currentWrap === 'on' ? 'off' : 'on';
             monacoEditor.updateOptions({ wordWrap: newWrap });
-            $(this).text(newWrap === 'on' ? '↩️ Unwrap' : '↩️ Wrap');
+            $(this).text(newWrap === 'on' ? 'Unwrap' : 'Wrap');
         }
     });
 
@@ -1894,16 +1745,16 @@ function updateSaveIndicator(frm, isDirty) {
     const indicator = wrapper.find('.save-indicator');
 
     if (isDirty) {
-        indicator.html('● <span style="color: #f0ad4e;">Unsaved</span>');
+        indicator.html('<span style="color: #f0ad4e;">Unsaved</span>');
     } else {
-        indicator.html('● <span style="color: #5cb85c;">Saved</span>');
+        indicator.html('<span style="color: #5cb85c;">Saved</span>');
     }
 }
 
 async function saveFile(frm, isAutoSave = false) {
     if (!monacoEditor || !frm.doc.app_name || !frm.doc.file_path) {
         frappe.show_alert({
-            message: __('⚠️ Missing app name or file path'),
+            message: __('Missing app name or file path'),
             indicator: 'orange'
         }, 2);
         return;
@@ -1913,7 +1764,7 @@ async function saveFile(frm, isAutoSave = false) {
 
     try {
         const response = await frappe.call({
-            method: 'frappe.api.app_file_access.write_file_content_with_backup',
+            method: `${API_PATH}.write_file_content_with_backup`,
             args: {
                 app_name: frm.doc.app_name,
                 file_path: frm.doc.file_path,
@@ -1928,7 +1779,7 @@ async function saveFile(frm, isAutoSave = false) {
 
             if (!isAutoSave) {
                 frappe.show_alert({
-                    message: __('✅ File saved successfully!'),
+                    message: __('File saved successfully!'),
                     indicator: 'green'
                 }, 2);
             }
@@ -1938,7 +1789,7 @@ async function saveFile(frm, isAutoSave = false) {
     } catch (error) {
         console.error("[ERROR] Save failed:", error);
         frappe.show_alert({
-            message: __('❌ Failed to save file'),
+            message: __('Failed to save file'),
             indicator: 'red'
         }, 3);
     }
@@ -1995,8 +1846,8 @@ function createEditorHTML() {
                         <i class="fa fa-expand"></i> Fullscreen
                     </button>
                     <div class="btn-group">
-                        <button class="btn btn-xs btn-default editor-minimap-toggle">🗺 Hide Minimap</button>
-                        <button class="btn btn-xs btn-default editor-wrap-toggle">↩️ Unwrap</button>
+                        <button class="btn btn-xs btn-default editor-minimap-toggle">Hide Minimap</button>
+                        <button class="btn btn-xs btn-default editor-wrap-toggle">Unwrap</button>
                     </div>
                 </div>
 
@@ -2017,7 +1868,7 @@ function createEditorHTML() {
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="save-indicator" style="font-size: 11px; font-weight: 600;">● Saved</span>
+                        <span class="save-indicator" style="font-size: 11px; font-weight: 600;">Saved</span>
                         <span class="editor-status" style="font-size: 11px; color: #666;">Ln 1, Col 1</span>
                     </div>
                 </div>
