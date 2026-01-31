@@ -127,9 +127,6 @@ permission_query_conditions = {
 	"Prepared Report": "frappe.core.doctype.prepared_report.prepared_report.get_permission_query_condition",
 	"File": "frappe.core.doctype.file.file.get_permission_query_conditions",
 	"User Invitation": "frappe.core.doctype.user_invitation.user_invitation.get_permission_query_conditions",
-	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-    "ToDo": "frappe.desk.doctype.todo.todo.get_permission_query_conditions",
-    "User": "frappe.core.doctype.user.user_permissions_custom.get_permission_query_conditions",
 
 }
 
@@ -149,9 +146,6 @@ has_permission = {
 	"Prepared Report": "frappe.core.doctype.prepared_report.prepared_report.has_permission",
 	"Notification Settings": "frappe.desk.doctype.notification_settings.notification_settings.has_permission",
 	"User Invitation": "frappe.core.doctype.user_invitation.user_invitation.has_permission",
-	"Event": "frappe.desk.doctype.event.event.has_permission",
-    "ToDo": "frappe.desk.doctype.todo.todo.has_permission",
-    "User": "frappe.core.doctype.user.user_permissions_custom.has_permission",
 
 }
 
