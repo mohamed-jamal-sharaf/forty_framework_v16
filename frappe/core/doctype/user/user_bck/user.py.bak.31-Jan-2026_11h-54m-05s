@@ -1185,87 +1185,76 @@ def get_active_website_users():
         and hour(timediff(now(), last_active)) < 72"""
 	)[0][0]
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# CUSTOM USER PERMISSIONS - Capital Project
-# ══════════════════════════════════════════════════════════════════════════════
-# Rules:
-# 1. Administrator: Can see all users
-# 2. Mohamed Sharaf (mohamed.sharaf.secured@gmail.com): Can see all users
-# 3. Developers (DevRole): Can only see themselves + users they created
-# ══════════════════════════════════════════════════════════════════════════════
-
-# Protected users that developers cannot see
-PROTECTED_USERS = ["Administrator", "Guest", "mohamed.sharaf.secured@gmail.com"]
-
-# Admin users who can see everything
-ADMIN_USERS = ["Administrator", "mohamed.sharaf.secured@gmail.com"]
-
-
 def get_permission_query_conditions(user):
-	"""
-	Filter User list based on current user's role.
-	This function is called when listing Users in List View.
-	"""
+	# ══════════════════════════════════════════════════════════════════════════
+	# CUSTOM FILTER - Capital Project
+	# Hide Administrator and Mohamed Sharaf from developers
+	# ══════════════════════════════════════════════════════════════════════════
+	
 	if not user:
 		user = frappe.session.user
-
-	# Admin users can see everything
-	if user in ADMIN_USERS:
+	
+	# Protected users list
+	protected_users = ["Administrator", "Guest", "mohamed.sharaf.secured@gmail.com"]
+	
+	# Admin users who can see everything
+	admin_users = ["Administrator", "mohamed.sharaf.secured@gmail.com"]
+	
+	# If current user is admin, show all
+	if user in admin_users:
 		return ""
-
+	
 	# Check if user has Administrator role
 	if user != "Administrator":
 		roles = frappe.get_roles(user)
 		if "Administrator" in roles:
 			return ""
-
+	
 	# For all other users (including DevRole)
 	# Hide protected users, show only self + users they created
-	protected_str = ", ".join([frappe.db.escape(u) for u in PROTECTED_USERS])
-
-	return f"""(
-		(`tabUser`.`name` = {frappe.db.escape(user)} OR `tabUser`.`owner` = {frappe.db.escape(user)})
-		AND `tabUser`.`name` NOT IN ({protected_str})
-	)"""
+	protected_str = ", ".join([frappe.db.escape(u) for u in protected_users])
+	
+	return f"""(`tabUser`.`name` = {frappe.db.escape(user)} OR `tabUser`.`owner` = {frappe.db.escape(user)})
+		AND `tabUser`.`name` NOT IN ({protected_str})"""
 
 
 def has_permission(doc, user):
-	"""
-	Check if user has permission to access a specific User document.
-	This function is called when opening a User document.
-	"""
+	# ══════════════════════════════════════════════════════════════════════════
+	# CUSTOM PERMISSION - Capital Project
+	# ══════════════════════════════════════════════════════════════════════════
+	
 	if not user:
 		user = frappe.session.user
-
-	# Admin users can access everything
-	if user in ADMIN_USERS:
+	
+	# Protected users list
+	protected_users = ["Administrator", "Guest", "mohamed.sharaf.secured@gmail.com"]
+	
+	# Admin users who can access everything
+	admin_users = ["Administrator", "mohamed.sharaf.secured@gmail.com"]
+	
+	# If current user is admin, allow all
+	if user in admin_users:
 		return True
-
+	
 	# Check if user has Administrator role
 	if user != "Administrator":
 		roles = frappe.get_roles(user)
 		if "Administrator" in roles:
 			return True
-
+	
 	# Block access to protected users
-	if doc.name in PROTECTED_USERS:
+	if doc.name in protected_users:
 		return False
-
+	
 	# Allow access to self
 	if doc.name == user:
 		return True
-
+	
 	# Allow access to users they created
 	if doc.owner == user:
 		return True
-
+	
 	return False
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# END CUSTOM USER PERMISSIONS
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 def notify_admin_access_to_system_manager(login_manager=None):
