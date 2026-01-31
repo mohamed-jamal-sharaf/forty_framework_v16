@@ -8,13 +8,7 @@ import frappe
 from frappe.model.document import Document
 
 
-# Allowed extensions
-ALLOWED_EXT = {".py", ".js", ".json", ".md", ".html", ".css", ".scss", ".sql", ".txt", ".xml", ".yaml", ".yml", ".sh"}
-
-# Backup folder name
-BACKUP_FOLDER_NAME = "backups"
-
-# Authorized user for frappe app access (ONLY this user can access frappe app)
+# Authorized user (can see all files and access frappe app)
 AUTHORIZED_USER = "mohamed.sharaf.secured@gmail.com"
 
 # Security passwords
@@ -22,11 +16,13 @@ FRAPPE_SAVE_PASSWORD = "01055577720@mGs"
 OTHER_SAVE_PASSWORD = "save_and_edit"
 DELETE_PASSWORD = "sure_delete"
 
+# Special folders/files
+HOOKS_FILE = "hooks.py"
+HOOKS_BACKUP_FOLDER = "hooks_bck"
+API_FOLDER = "api"
+
 
 class AppFilesExplorer(Document):
-    # begin: auto-generated types
-    # This code is auto-generated. Do not modify anything in this block.
-
     from typing import TYPE_CHECKING
 
     if TYPE_CHECKING:
@@ -37,8 +33,6 @@ class AppFilesExplorer(Document):
         my_code: DF.Code | None
         target_path: DF.Data | None
 
-    # end: auto-generated types
-
     pass
 
 
@@ -46,14 +40,14 @@ class AppFilesExplorer(Document):
 # Helper Functions
 # =====================================================
 
-def _is_authorized_for_frappe_app():
-    """Check if current user can access frappe app files."""
+def _is_authorized_user():
+    """Check if current user is authorized."""
     return frappe.session.user == AUTHORIZED_USER
 
 
 def _check_frappe_app_access(app_name):
     """Raise error if unauthorized user tries to access frappe app."""
-    if app_name and app_name.lower() == "frappe" and not _is_authorized_for_frappe_app():
+    if app_name and app_name.lower() == "frappe" and not _is_authorized_user():
         frappe.throw("Access denied: You are not authorized to access frappe app files.")
 
 
@@ -78,25 +72,10 @@ def _get_app_path(app_name):
     return app_path
 
 
-def _get_extension_folder(filename):
-    """Return folder name based on file extension."""
+def _get_extension(filename):
+    """Get file extension without dot."""
     _, ext = os.path.splitext(filename)
-    ext_name = ext.lower().lstrip(".")
-    return ext_name if ext_name else "other"
-
-
-def _get_backup_folder(file_dir, filename):
-    """Create backups/extension folder if not exists."""
-    ext_folder = _get_extension_folder(filename)
-    backup_folder = os.path.join(file_dir, BACKUP_FOLDER_NAME, ext_folder)
-    
-    if not os.path.exists(backup_folder):
-        try:
-            os.makedirs(backup_folder, exist_ok=True)
-        except Exception as e:
-            frappe.throw(f"Failed to create backup folder: {e}")
-    
-    return backup_folder, ext_folder
+    return ext.lower().lstrip(".")
 
 
 def _format_file_size(size_bytes):
@@ -131,6 +110,56 @@ def _verify_delete_password(password):
         frappe.throw("Invalid confirmation code. Please enter 'sure_delete' to delete.")
 
 
+def _is_inside_api_folder(file_path):
+    """Check if file is inside api folder."""
+    if not file_path:
+        return False
+    parts = file_path.replace("\\", "/").split("/")
+    return API_FOLDER in parts
+
+
+def _is_hooks_file(file_path):
+    """Check if file is hooks.py at root."""
+    if not file_path:
+        return False
+    # hooks.py at root level (no folder path)
+    return file_path == HOOKS_FILE or file_path.endswith(f"/{HOOKS_FILE}")
+
+
+def _get_backup_folder_for_file(app_path, file_path):
+    """
+    Get backup folder path based on file location.
+    - hooks.py -> hooks_bck/
+    - api/somefile.py -> api/somefile_bck/
+    - api/subfolder/file.py -> api/subfolder/file_bck/
+    """
+    filename = os.path.basename(file_path)
+    filename_without_ext = os.path.splitext(filename)[0]
+    
+    # Check if it's hooks.py at root
+    if file_path == HOOKS_FILE:
+        backup_folder = os.path.join(app_path, HOOKS_BACKUP_FOLDER)
+    elif _is_inside_api_folder(file_path):
+        # For files inside api folder, create backup folder next to the file
+        file_dir = os.path.dirname(os.path.join(app_path, file_path))
+        backup_folder = os.path.join(file_dir, f"{filename_without_ext}_bck")
+    else:
+        # For other files, create backup folder next to the file
+        file_dir = os.path.dirname(os.path.join(app_path, file_path))
+        backup_folder = os.path.join(file_dir, f"{filename_without_ext}_bck")
+    
+    # Create folder if not exists
+    if not os.path.exists(backup_folder):
+        os.makedirs(backup_folder, exist_ok=True)
+    
+    return backup_folder
+
+
+def _is_backup_folder(folder_name):
+    """Check if folder is a backup folder."""
+    return folder_name.endswith("_bck") or folder_name == HOOKS_BACKUP_FOLDER
+
+
 # =====================================================
 # API Functions
 # =====================================================
@@ -140,7 +169,7 @@ def get_installed_apps():
     """Get list of installed apps, filtering frappe for unauthorized users."""
     apps = frappe.get_installed_apps()
     
-    if not _is_authorized_for_frappe_app():
+    if not _is_authorized_user():
         apps = [app for app in apps if app.lower() != "frappe"]
     
     return apps
@@ -161,8 +190,11 @@ def list_app_folder_files(app_name, path=""):
         frappe.throw(f"Directory not found: {path}")
     
     files = []
+    is_root = not path  # Check if we're at root level
+    is_authorized = _is_authorized_user()
+    
     for fn in os.listdir(target_path):
-        # Skip hidden files and __pycache__, show backups folder
+        # Skip hidden files and __pycache__
         if fn.startswith(".") or fn == "__pycache__":
             continue
         
@@ -170,12 +202,23 @@ def list_app_folder_files(app_name, path=""):
         rel_path = os.path.join(path, fn) if path else fn
         is_dir = os.path.isdir(full_path)
         
+        # At root level, non-authorized users only see: hooks.py, api, hooks_bck
+        if is_root and not is_authorized:
+            if is_dir:
+                # Only show api folder and hooks_bck folder
+                if fn != API_FOLDER and fn != HOOKS_BACKUP_FOLDER:
+                    continue
+            else:
+                # Only show hooks.py file
+                if fn != HOOKS_FILE:
+                    continue
+        
         file_info = {
             "name": fn,
             "path": rel_path,
             "is_dir": is_dir,
             "is_file": not is_dir,
-            "is_backup_folder": fn == BACKUP_FOLDER_NAME
+            "is_backup_folder": _is_backup_folder(fn)
         }
         
         if not is_dir:
@@ -213,10 +256,8 @@ def read_file_content(app_name, file_path):
 
 @frappe.whitelist()
 def write_file_content_with_backup(app_name, file_path, content, password):
-    """Write file with auto backup organized by extension."""
+    """Write file with auto backup."""
     _check_frappe_app_access(app_name)
-    
-    # Verify password
     _verify_save_password(app_name, password)
     
     if not _is_safe_path(file_path):
@@ -226,16 +267,14 @@ def write_file_content_with_backup(app_name, file_path, content, password):
     full_path = os.path.join(app_path, file_path)
     
     if not os.path.isfile(full_path):
-        frappe.throw(f"File not found: {full_path}")
+        frappe.throw(f"File not found: {file_path}")
     
-    # Get filename and directory
-    filename = os.path.basename(full_path)
-    file_dir = os.path.dirname(full_path)
+    filename = os.path.basename(file_path)
     
-    # Get or create backup folder
-    backup_folder, ext_folder = _get_backup_folder(file_dir, filename)
+    # Get backup folder based on file location
+    backup_folder = _get_backup_folder_for_file(app_path, file_path)
     
-    # Create backup filename with timestamp
+    # Create backup with timestamp
     ts = time.strftime("%Y%m%d-%H%M%S")
     backup_filename = f"{filename}.bak.{ts}"
     backup_path = os.path.join(backup_folder, backup_filename)
@@ -253,10 +292,11 @@ def write_file_content_with_backup(app_name, file_path, content, password):
     except Exception as e:
         frappe.throw(f"Failed to write file: {e}")
     
+    backup_folder_name = os.path.basename(backup_folder)
+    
     return {
         "success": True,
-        "message": f"Saved. Backup: {BACKUP_FOLDER_NAME}/{ext_folder}/{backup_filename}",
-        "backup_path": backup_path
+        "message": f"Saved. Backup: {backup_folder_name}/{backup_filename}"
     }
 
 
@@ -264,8 +304,6 @@ def write_file_content_with_backup(app_name, file_path, content, password):
 def create_new_file(app_name, folder_path, file_name, password):
     """Create a new file."""
     _check_frappe_app_access(app_name)
-    
-    # Verify password
     _verify_save_password(app_name, password)
     
     if not _is_safe_path(folder_path) or not _is_safe_path(file_name):
@@ -309,8 +347,6 @@ def create_new_file(app_name, folder_path, file_name, password):
 def create_new_folder(app_name, parent_path, folder_name, password):
     """Create a new folder."""
     _check_frappe_app_access(app_name)
-    
-    # Verify password
     _verify_save_password(app_name, password)
     
     if not _is_safe_path(parent_path) or not _is_safe_path(folder_name):
@@ -338,8 +374,6 @@ def create_new_folder(app_name, parent_path, folder_name, password):
 def delete_file(app_name, file_path, password):
     """Delete a file and its backups."""
     _check_frappe_app_access(app_name)
-    
-    # Verify delete password
     _verify_delete_password(password)
     
     if not _is_safe_path(file_path):
@@ -352,11 +386,10 @@ def delete_file(app_name, file_path, password):
         frappe.throw("File not found.")
     
     filename = os.path.basename(file_path)
-    file_dir = os.path.dirname(full_path)
     
+    # Get backup folder and delete backups
+    backup_folder = _get_backup_folder_for_file(app_path, file_path)
     backups_deleted = 0
-    ext_folder = _get_extension_folder(filename)
-    backup_folder = os.path.join(file_dir, BACKUP_FOLDER_NAME, ext_folder)
     
     if os.path.exists(backup_folder):
         prefix = f"{filename}.bak."
@@ -367,7 +400,15 @@ def delete_file(app_name, file_path, password):
                     backups_deleted += 1
                 except Exception:
                     pass
+        
+        # Remove backup folder if empty
+        try:
+            if not os.listdir(backup_folder):
+                os.rmdir(backup_folder)
+        except Exception:
+            pass
     
+    # Delete file
     try:
         os.remove(full_path)
     except Exception as e:
@@ -384,8 +425,6 @@ def delete_file(app_name, file_path, password):
 def delete_folder(app_name, folder_path, password):
     """Delete an empty folder."""
     _check_frappe_app_access(app_name)
-    
-    # Verify delete password
     _verify_delete_password(password)
     
     if not _is_safe_path(folder_path):
@@ -397,12 +436,12 @@ def delete_folder(app_name, folder_path, password):
     if not os.path.isdir(full_path):
         frappe.throw("Folder not found.")
     
-    contents = os.listdir(full_path)
+    contents = [c for c in os.listdir(full_path) if not c.startswith(".")]
     if contents:
         frappe.throw("Folder is not empty. Delete all contents first.")
     
     try:
-        os.rmdir(full_path)
+        shutil.rmtree(full_path)
     except Exception as e:
         frappe.throw(f"Failed to delete folder: {e}")
     
@@ -416,8 +455,6 @@ def delete_folder(app_name, folder_path, password):
 def rename_item(app_name, old_path, new_name, password):
     """Rename a file or folder."""
     _check_frappe_app_access(app_name)
-    
-    # Verify password
     _verify_save_password(app_name, password)
     
     if not _is_safe_path(old_path) or not _is_safe_path(new_name):
@@ -459,12 +496,10 @@ def list_file_backups(app_name, file_path):
         frappe.throw("Invalid file path.")
     
     app_path = _get_app_path(app_name)
-    full_path = os.path.join(app_path, file_path)
-    
     filename = os.path.basename(file_path)
-    file_dir = os.path.dirname(full_path)
-    ext_folder = _get_extension_folder(filename)
-    backup_folder = os.path.join(file_dir, BACKUP_FOLDER_NAME, ext_folder)
+    
+    # Get backup folder for this file
+    backup_folder = _get_backup_folder_for_file(app_path, file_path)
     
     if not os.path.exists(backup_folder):
         return []
@@ -476,13 +511,13 @@ def list_file_backups(app_name, file_path):
         if fn.startswith(prefix):
             full_backup_path = os.path.join(backup_folder, fn)
             stat = os.stat(full_backup_path)
+            timestamp = fn.replace(prefix, "")
             backups.append({
                 "filename": fn,
-                "timestamp": fn.replace(prefix, ""),
+                "timestamp": timestamp,
                 "size": stat.st_size,
                 "size_formatted": _format_file_size(stat.st_size),
-                "created": time.ctime(stat.st_mtime),
-                "folder": ext_folder
+                "created": time.ctime(stat.st_mtime)
             })
     
     return backups
@@ -492,8 +527,6 @@ def list_file_backups(app_name, file_path):
 def restore_backup(app_name, file_path, backup_filename, password):
     """Restore a specific backup."""
     _check_frappe_app_access(app_name)
-    
-    # Verify password
     _verify_save_password(app_name, password)
     
     if not _is_safe_path(file_path) or not _is_safe_path(backup_filename):
@@ -501,29 +534,28 @@ def restore_backup(app_name, file_path, backup_filename, password):
     
     app_path = _get_app_path(app_name)
     full_path = os.path.join(app_path, file_path)
-    
     filename = os.path.basename(file_path)
-    file_dir = os.path.dirname(full_path)
-    ext_folder = _get_extension_folder(filename)
-    backup_folder = os.path.join(file_dir, BACKUP_FOLDER_NAME, ext_folder)
     
+    backup_folder = _get_backup_folder_for_file(app_path, file_path)
     backup_file = os.path.join(backup_folder, backup_filename)
     
     if not os.path.isfile(backup_file):
         frappe.throw("Backup file not found.")
     
+    # Create pre-restore backup
     ts = time.strftime("%Y%m%d-%H%M%S")
     pre_restore_backup = os.path.join(backup_folder, f"{filename}.pre-restore.{ts}")
     
     try:
-        shutil.copy2(full_path, pre_restore_backup)
+        if os.path.isfile(full_path):
+            shutil.copy2(full_path, pre_restore_backup)
         shutil.copy2(backup_file, full_path)
     except Exception as e:
         frappe.throw(f"Failed to restore backup: {e}")
     
     return {
         "success": True,
-        "message": f"Restored from: {ext_folder}/{backup_filename}"
+        "message": f"Restored from: {backup_filename}"
     }
 
 
@@ -536,13 +568,7 @@ def read_backup_content(app_name, file_path, backup_filename):
         frappe.throw("Invalid path or filename.")
     
     app_path = _get_app_path(app_name)
-    full_path = os.path.join(app_path, file_path)
-    
-    filename = os.path.basename(file_path)
-    file_dir = os.path.dirname(full_path)
-    ext_folder = _get_extension_folder(filename)
-    backup_folder = os.path.join(file_dir, BACKUP_FOLDER_NAME, ext_folder)
-    
+    backup_folder = _get_backup_folder_for_file(app_path, file_path)
     backup_file = os.path.join(backup_folder, backup_filename)
     
     if not os.path.isfile(backup_file):
@@ -553,12 +579,3 @@ def read_backup_content(app_name, file_path, backup_filename):
             return f.read()
     except UnicodeDecodeError:
         frappe.throw("Cannot read binary file.")
-
-
-@frappe.whitelist()
-def get_app_type(app_name):
-    """Return if app is frappe or other (for client-side password hint)."""
-    return {
-        "is_frappe": app_name and app_name.lower() == "frappe",
-        "app_name": app_name
-    }
