@@ -21,6 +21,20 @@ BACKUP_FOLDER_NAME = "backups"
 
 
 class ServerAccess(Document):
+    # begin: auto-generated types
+    # This code is auto-generated. Do not modify anything in this block.
+
+    from typing import TYPE_CHECKING
+
+    if TYPE_CHECKING:
+        from frappe.types import DF
+
+        file_content: DF.Code | None
+        filename: DF.Literal[None]
+        last_op_log: DF.SmallText | None
+        target_doctype: DF.Link | None
+    # end: auto-generated types
+
     from typing import TYPE_CHECKING
 
     if TYPE_CHECKING:

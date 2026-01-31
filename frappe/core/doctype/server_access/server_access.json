@@ -73,7 +73,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-01-31 02:11:37.667784",
+ "modified": "2026-01-31 11:48:17.708682",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Server Access",
@@ -85,6 +85,16 @@
    "print": 1,
    "read": 1,
    "role": "Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "DevRole",
    "share": 1,
    "write": 1
   }
