@@ -76,25 +76,18 @@ def _get_app_path(app_name):
 def _get_extension_folder(filename):
     """Return folder name based on file extension."""
     _, ext = os.path.splitext(filename)
-    ext_name = ext.lower().lstrip(".")
-    return ext_name if ext_name else "other"
+    return ext.lower().lstrip(".")
 
 
-def _get_backup_folder(file_dir, filename):
+def _get_backup_folder(base_path, filename):
     """Create backups/extension folder if not exists."""
     ext_folder = _get_extension_folder(filename)
-    backup_folder = os.path.join(file_dir, BACKUP_FOLDER_NAME, ext_folder)
+    backup_folder = os.path.join(base_path, BACKUP_FOLDER_NAME, ext_folder)
     
-    # Create folder if not exists
     if not os.path.exists(backup_folder):
-        try:
-            os.makedirs(backup_folder, exist_ok=True)
-            frappe.logger().info(f"Created backup folder: {backup_folder}")
-        except Exception as e:
-            frappe.logger().error(f"Failed to create backup folder: {backup_folder}, Error: {e}")
-            frappe.throw(f"Failed to create backup folder: {e}")
+        os.makedirs(backup_folder)
     
-    return backup_folder, ext_folder
+    return backup_folder
 
 
 def _format_file_size(size_bytes):
@@ -202,55 +195,32 @@ def write_file_content_with_backup(app_name, file_path, content):
     app_path = _get_app_path(app_name)
     full_path = os.path.join(app_path, file_path)
     
-    # Debug logging
-    frappe.logger().info(f"[BACKUP] App path: {app_path}")
-    frappe.logger().info(f"[BACKUP] File path: {file_path}")
-    frappe.logger().info(f"[BACKUP] Full path: {full_path}")
-    
     if not os.path.isfile(full_path):
-        frappe.throw(f"File not found: {full_path}")
+        frappe.throw("File not found.")
     
-    # Get filename and directory
-    filename = os.path.basename(full_path)
+    filename = os.path.basename(file_path)
     file_dir = os.path.dirname(full_path)
+    ext_folder = _get_extension_folder(filename)
+    backup_folder = _get_backup_folder(file_dir, filename)
     
-    frappe.logger().info(f"[BACKUP] Filename: {filename}")
-    frappe.logger().info(f"[BACKUP] File dir: {file_dir}")
-    
-    # Get or create backup folder
-    backup_folder, ext_folder = _get_backup_folder(file_dir, filename)
-    
-    frappe.logger().info(f"[BACKUP] Backup folder: {backup_folder}")
-    frappe.logger().info(f"[BACKUP] Extension folder: {ext_folder}")
-    
-    # Create backup filename with timestamp
     ts = time.strftime("%Y%m%d-%H%M%S")
     backup_filename = f"{filename}.bak.{ts}"
     backup_path = os.path.join(backup_folder, backup_filename)
     
-    frappe.logger().info(f"[BACKUP] Backup path: {backup_path}")
-    
-    # Create backup
     try:
         shutil.copy2(full_path, backup_path)
-        frappe.logger().info(f"[BACKUP] Backup created successfully: {backup_path}")
     except Exception as e:
-        frappe.logger().error(f"[BACKUP] Failed to create backup: {e}")
         frappe.throw(f"Failed to backup file: {e}")
     
-    # Write new content
     try:
         with open(full_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(content if content is not None else "")
-        frappe.logger().info(f"[BACKUP] File saved successfully: {full_path}")
     except Exception as e:
-        frappe.logger().error(f"[BACKUP] Failed to write file: {e}")
         frappe.throw(f"Failed to write file: {e}")
     
     return {
         "success": True,
-        "message": f"Saved. Backup: {BACKUP_FOLDER_NAME}/{ext_folder}/{backup_filename}",
-        "backup_path": backup_path
+        "message": f"Saved. Backup: {BACKUP_FOLDER_NAME}/{ext_folder}/{backup_filename}"
     }
 
 
