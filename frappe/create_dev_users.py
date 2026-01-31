@@ -89,3 +89,4 @@ def create_developers():
         # Set password
         update_password(email, dev["password"])
         print(f"✅ Developer user created: {email}")
+
