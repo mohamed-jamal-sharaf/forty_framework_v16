@@ -73,7 +73,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-01-31 11:48:17.708682",
+ "modified": "2026-01-31 11:48:26.727745",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Server Access",
@@ -90,7 +90,6 @@
   },
   {
    "create": 1,
-   "delete": 1,
    "email": 1,
    "print": 1,
    "read": 1,
