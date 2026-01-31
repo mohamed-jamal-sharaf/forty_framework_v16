@@ -30,7 +30,7 @@ scheduler_events = {
 
 page_js = {"setup-wizard": "public/js/frappe/setup_wizard.js"}
 
-# website sharaf
+# website
 app_include_js = [
 	"libs.bundle.js",
 	"desk.bundle.js",
