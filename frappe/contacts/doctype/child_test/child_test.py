@@ -14,6 +14,8 @@ class childtest(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		age: DF.Data | None
+		nane: DF.Data | None
 		parent: DF.Data
 		parentfield: DF.Data
 		parenttype: DF.Data
