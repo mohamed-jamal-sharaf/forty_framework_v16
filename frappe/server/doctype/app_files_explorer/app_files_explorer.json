@@ -35,7 +35,8 @@
   {
    "fieldname": "target_path",
    "fieldtype": "Data",
-   "label": "Target Path"
+   "label": "Target Path",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_npez",
@@ -44,7 +45,8 @@
   {
    "fieldname": "file_path",
    "fieldtype": "Data",
-   "label": "File Path"
+   "label": "File Path",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_rbku",
@@ -67,7 +69,6 @@
    "label": "Editor"
   },
   {
-   "collapsible": 1,
    "fieldname": "section_break_vywj",
    "fieldtype": "Section Break",
    "label": "Code",
@@ -76,7 +77,8 @@
   {
    "fieldname": "my_code",
    "fieldtype": "Code",
-   "label": "Code"
+   "label": "Code",
+   "read_only": 1
   },
   {
    "fieldname": "list_of_files_tab",
@@ -94,8 +96,8 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-01-31 01:58:06.535355",
- "modified_by": "mohamed.sharaf.secured@gmail.com",
+ "modified": "2026-02-01 11:04:45.129927",
+ "modified_by": "developer_4@fortycloud.io",
  "module": "Server",
  "name": "App Files Explorer",
  "naming_rule": "Expression",
