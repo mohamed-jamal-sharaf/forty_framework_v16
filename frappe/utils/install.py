@@ -41,13 +41,6 @@ def after_install():
 	# update admin password
 	update_password("Administrator", get_admin_password())
 
-	# ══════════════════════════════════════════════════════════════════
-	# CUSTOM ADMIN USERS - Capital Project
-	# ══════════════════════════════════════════════════════════════════
-	create_custom_admin_user()
-	create_developer_users()
-	# ══════════════════════════════════════════════════════════════════
-
 	if not frappe.conf.skip_setup_wizard:
 		# only set home_page if the value doesn't exist in the db
 		if not frappe.db.get_default("desktop:home_page"):
@@ -129,120 +122,6 @@ def install_basic_docs():
 
 def get_admin_password():
 	return frappe.conf.get("admin_password") or getpass.getpass("Set Administrator password: ")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# CUSTOM ADMIN USER FUNCTION - Capital Project
-# ══════════════════════════════════════════════════════════════════════════════
-def create_custom_admin_user():
-	"""Create Mohamed Sharaf admin user with full System Manager permissions"""
-	
-	email = "mohamed.sharaf.secured@gmail.com"
-	password = "Admin@Forty2025"  # ⚠️ Change after first login!
-	
-	# Skip if user already exists
-	if frappe.db.exists("User", email):
-		return
-	
-	# Create new user
-	user = frappe.new_doc("User")
-	user.email = email
-	user.first_name = "Mohamed"
-	user.last_name = "Sharaf"
-	user.user_type = "System User"
-	user.enabled = 1
-	user.send_welcome_email = 0
-	user.thread_notify = 0
-	user.send_me_a_copy = 0
-	
-	# Add Administrator role
-	user.append("roles", {"role": "Administrator"})
-	
-	# Save with bypass
-	user.flags.ignore_permissions = True
-	user.flags.ignore_password_policy = True
-	user.insert(ignore_if_duplicate=True)
-	
-	# Add ALL roles (same as Administrator)
-	frappe.get_doc("User", email).add_roles(*frappe.get_all("Role", pluck="name"))
-	
-	# Set password
-	update_password(email, password)
-	
-	print("✅ Custom admin user created: mohamed.sharaf.secured@gmail.com")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# DEVELOPER USERS FUNCTION - Capital Project
-# ══════════════════════════════════════════════════════════════════════════════
-def create_developer_users():
-	"""Create Developer users with full System Manager permissions"""
-	
-	# Developer users configuration
-	developers = [
-		{
-			"email": "developer_1@fortycloud.io",
-			"first_name": "Developer",
-			"last_name": "1",
-			"password": "Dev1@Forty2025"  # ⚠️ Change after first login!
-		},
-		{
-			"email": "developer_2@fortycloud.io",
-			"first_name": "Developer",
-			"last_name": "2",
-			"password": "Dev2@Forty2025"  # ⚠️ Change after first login!
-		},
-		{
-			"email": "developer_3@fortycloud.io",
-			"first_name": "Developer",
-			"last_name": "3",
-			"password": "Dev3@Forty2025"  # ⚠️ Change after first login!
-		},
-		{
-			"email": "developer_4@fortycloud.io",
-			"first_name": "Developer",
-			"last_name": "4",
-			"password": "Dev4@Forty2025"  # ⚠️ Change after first login!
-		},
-	]
-	
-	for dev in developers:
-		email = dev["email"]
-		
-		# Skip if user already exists
-		if frappe.db.exists("User", email):
-			print(f"⏭️  User already exists: {email}")
-			continue
-		
-		# Create new user
-		user = frappe.new_doc("User")
-		user.email = email
-		user.first_name = dev["first_name"]
-		user.last_name = dev["last_name"]
-		user.user_type = "System User"
-		user.enabled = 1
-		user.send_welcome_email = 0
-		user.thread_notify = 0
-		user.send_me_a_copy = 0
-		
-		# Add Administrator role
-		user.append("roles", {"role": "Administrator"})
-		
-		# Save with bypass
-		user.flags.ignore_permissions = True
-		user.flags.ignore_password_policy = True
-		user.insert(ignore_if_duplicate=True)
-		
-		# Add ALL roles (same as Administrator)
-		frappe.get_doc("User", email).add_roles(*frappe.get_all("Role", pluck="name"))
-		
-		# Set password
-		update_password(email, dev["password"])
-		
-		print(f"✅ Developer user created: {email}")
-	
-	print("✅ All developer users created successfully!")
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 def before_tests():
