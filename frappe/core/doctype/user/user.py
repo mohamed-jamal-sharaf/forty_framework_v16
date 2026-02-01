@@ -1,5 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# License: MIT. See LICENSE 1
 
 from collections.abc import Iterable
 from datetime import timedelta
