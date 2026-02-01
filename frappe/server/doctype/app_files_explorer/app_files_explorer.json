@@ -83,12 +83,12 @@
   {
    "fieldname": "list_of_files_tab",
    "fieldtype": "Tab Break",
-   "label": "List Of Files"
+   "label": "\ud83d\uddc2\ufe0f List Of Files"
   },
   {
    "fieldname": "editor_tab",
    "fieldtype": "Tab Break",
-   "label": "Code Editor"
+   "label": "{-} Code Editor"
   }
  ],
  "grid_page_length": 50,
@@ -96,7 +96,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-02-01 11:04:45.129927",
+ "modified": "2026-02-01 11:05:33.603982",
  "modified_by": "developer_4@fortycloud.io",
  "module": "Server",
  "name": "App Files Explorer",
