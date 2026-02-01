@@ -1,14 +1,9 @@
 {
  "app": "frappe",
  "charts": [],
- "content": "[{\"id\":\"NosD6wA0vD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Module Def\",\"col\":4}},{\"id\":\"HXRmktXYHy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"DocType\",\"col\":4}},{\"id\":\"jct9yIWPu7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Client Script\",\"col\":4}},{\"id\":\"CWMVw1HTJ7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Doctype Direct Server Access\",\"col\":6}},{\"id\":\"OvrfR7-PmV\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"App Files Explorer\",\"col\":6}},{\"id\":\"62hseENHbd\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"IsPxOpZah7\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Doctype List\",\"col\":12}},{\"id\":\"MmEJpjEdGR\",\"type\":\"card\",\"data\":{\"card_name\":\"Views\",\"col\":4}},{\"id\":\"2ZdtgxQZqq\",\"type\":\"card\",\"data\":{\"card_name\":\"Customization\",\"col\":4}},{\"id\":\"NPFolijIcb\",\"type\":\"card\",\"data\":{\"card_name\":\"Scripting\",\"col\":4}},{\"id\":\"BIHjudL0T_\",\"type\":\"card\",\"data\":{\"card_name\":\"Modules\",\"col\":4}},{\"id\":\"iK3JQ9RXJE\",\"type\":\"card\",\"data\":{\"card_name\":\"Packages\",\"col\":4}},{\"id\":\"TiO9FCUUeC\",\"type\":\"card\",\"data\":{\"card_name\":\"System Logs\",\"col\":4}}]",
+ "content": "[{\"id\":\"NosD6wA0vD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Module Def\",\"col\":4}},{\"id\":\"HXRmktXYHy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"DocType\",\"col\":4}},{\"id\":\"jct9yIWPu7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Client Script\",\"col\":4}},{\"id\":\"62hseENHbd\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"OvrfR7-PmV\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"{-} Forty Studio \",\"col\":12}},{\"id\":\"D-tkSk_m1_\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"MmEJpjEdGR\",\"type\":\"card\",\"data\":{\"card_name\":\"Views\",\"col\":4}},{\"id\":\"2ZdtgxQZqq\",\"type\":\"card\",\"data\":{\"card_name\":\"Customization\",\"col\":4}},{\"id\":\"NPFolijIcb\",\"type\":\"card\",\"data\":{\"card_name\":\"Scripting\",\"col\":4}},{\"id\":\"BIHjudL0T_\",\"type\":\"card\",\"data\":{\"card_name\":\"Modules\",\"col\":4}},{\"id\":\"iK3JQ9RXJE\",\"type\":\"card\",\"data\":{\"card_name\":\"Packages\",\"col\":4}},{\"id\":\"TiO9FCUUeC\",\"type\":\"card\",\"data\":{\"card_name\":\"System Logs\",\"col\":4}}]",
  "creation": "2021-01-02 10:51:16.579957",
- "custom_blocks": [
-  {
-   "custom_block_name": "Doctype List",
-   "label": "Doctype List"
-  }
- ],
+ "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -317,8 +312,8 @@
    "type": "Link"
   }
  ],
- "modified": "2026-01-15 15:13:20.833286",
- "modified_by": "Administrator",
+ "modified": "2026-02-01 15:56:08.142818",
+ "modified_by": "mohamed.sharaf.secured@gmail.com",
  "module": "Core",
  "name": "Build",
  "number_cards": [],
@@ -333,15 +328,8 @@
   {
    "color": "Grey",
    "doc_view": "List",
-   "label": "App Files Explorer",
+   "label": "{-} Forty Studio ",
    "link_to": "App Files Explorer",
-   "type": "DocType"
-  },
-  {
-   "color": "Grey",
-   "doc_view": "List",
-   "label": "Doctype Direct Server Access",
-   "link_to": "Server Access",
    "type": "DocType"
   },
   {

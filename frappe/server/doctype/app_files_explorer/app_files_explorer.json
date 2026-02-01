@@ -96,8 +96,8 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-02-01 11:05:33.603982",
- "modified_by": "developer_4@fortycloud.io",
+ "modified": "2026-02-01 15:54:18.437190",
+ "modified_by": "mohamed.sharaf.secured@gmail.com",
  "module": "Server",
  "name": "App Files Explorer",
  "naming_rule": "Expression",
@@ -119,6 +119,16 @@
    "print": 1,
    "read": 1,
    "role": "Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "All",
    "share": 1,
    "write": 1
   }
